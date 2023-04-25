@@ -1,3 +1,3 @@
 # aptumcloud
-Initial MVP repository and AWS setup
-this repo contains secure REST API server and chatGPT webhook as well as GCP container hooks
+Initial MVP repository and GKE setup
+this repo contains secure hardening and will contain chatGPT webhooks as well as GKE hooks for the community to use
