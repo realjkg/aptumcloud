@@ -161,5 +161,6 @@ resource "google_storage_bucket_iam_member" "bucket_rbac_access" {
 }
       
 # Members only provided in the email list have access to the monitoring bucket     
+# Adjust the email address(es) below to match the desired GCP account.
 #      member = "serviceAccount:my-gcp-service-account@my-gcp-project.iam.gserviceaccount.com"
       
