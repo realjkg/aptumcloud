@@ -160,3 +160,6 @@ resource "google_storage_bucket_iam_member" "bucket_rbac_access" {
   member = "serviceAccount:${google_service_account.gcs_rbac_account.email}"
 }
       
+# Members only provided in the email list have access to the monitoring bucket     
+#      member = "serviceAccount:my-gcp-service-account@my-gcp-project.iam.gserviceaccount.com"
+      
