@@ -22,6 +22,7 @@ resource "google_organization_iam_binding" "gke_cluster_binding" {
     "serviceAccount:my-gcp-service-account@my-gcp-project.iam.gserviceaccount.com",
   ]
 }
+    
 
 resource "google_organization_iam_binding" "gke_cluster_monitoring_binding" {
   org_id = "APTUMCLOUD_DEV"
@@ -54,7 +55,8 @@ resource "google_container_cluster" "main_cluster" {
     }
   }
 }
-
+    
+    
 resource "google_container_cluster_oidc_authenticator_config" "oidc_auth_config" {
   count = var.authentication_method == "oidc" ? 1 : 0
 
@@ -129,7 +131,7 @@ resource "google_storage_bucket_iam_binding" "private_bucket" {
 resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
-
+    
     
 # Ensure bucket hardening with the keyring config below
     
@@ -145,3 +147,16 @@ resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
 
+      #Ensure bucket access has read-only viewer role with service rbac account
+     
+    resource "google_service_account" "gcs_rbac_account" {
+  account_id   = "gcs-rbac-account"
+  display_name = "GCS RBAC Service Account"
+}
+
+resource "google_storage_bucket_iam_member" "bucket_rbac_access" {
+  bucket = google_storage_bucket.encrypted_bucket.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.gcs_rbac_account.email}"
+}
+      
