@@ -40,7 +40,7 @@ resource "google_organization_iam_binding" "gke_cluster_monitoring_binding" {
   ]
 }
 
-    resource "google_container_cluster" "main_cluster" {
+resource "google_container_cluster" "main_cluster" {
   name               = "main-cluster"
   location           = "us-central1"
   initial_node_count = 3
@@ -77,5 +77,71 @@ resource "google_container_cluster_saml_authenticator_config" "saml_auth_config"
   saml_config {
     idp_metadata_url = var.saml_idp_metadata_url
   }
+}
+
+    
+ resource "google_container_cluster" "main_cluster" {
+  name               = "main-cluster"
+  location           = "us-central1"
+  initial_node_count = 3
+
+  master_auth {
+    username = ""
+    password = ""
+
+    client_certificate_config {
+      issue_client_certificate = false
+    }
+  }
+}
+    
+#encryption blocks and KMS hardening here
+    
+    resource "google_kms_key_ring" "kms_keyring" {
+  name     = "aptum-k8s-keyring"
+  location = "us-central1"
+}
+
+resource "google_kms_crypto_key" "kms_crypto_key" {
+  name            = "aptum-k8s-crypto-key"
+  key_ring        = google_kms_key_ring.kms_keyring.self_link
+  rotation_period = "100000s"
+}
+
+    
+    resource "google_storage_bucket" "encrypted_bucket" {
+  name     = "aptum-k8s-${random_id.bucket_suffix.hex}"
+  location = "us-central1"
+
+  encryption {
+    default_kms_key_name = google_kms_key_ring.kms_keyring.crypto_key_id
+  }
+}
+
+#By setting an empty members list in the google_storage_bucket_iam_binding resource, we are effectively removing any public access bindings associated with the roles/storage.objectViewer role
+resource "google_storage_bucket_iam_binding" "private_bucket" {
+  bucket = google_storage_bucket.encrypted_bucket.name
+  role   = "roles/storage.objectViewer"
+
+  members = []
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+    
+# Ensure bucket hardening with the keyring config below
+    
+    resource "google_storage_bucket" "encrypted_bucket" {
+  name     = "aptum-k8s-${random_id.bucket_suffix.hex}"
+  location = "us-central1"
+
+    encryption {
+  default_kms_key_name = google_kms_crypto_key.kms_crypto_key.self_link
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
 }
 
