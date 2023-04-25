@@ -13,3 +13,30 @@ module "gke_monitoring" {
   fluentd_enabled                   = true
   fluentd_service_account           = module.gke_cluster.service_account
 }
+    
+resource "google_organization_iam_binding" "gke_cluster_binding" {
+  org_id = "APTUMCLOUD_DEV"
+  role = "roles/container.admin"
+
+  members = [
+    "serviceAccount:my-gcp-service-account@my-gcp-project.iam.gserviceaccount.com",
+  ]
+}
+
+resource "google_organization_iam_binding" "gke_cluster_monitoring_binding" {
+  org_id = "APTUMCLOUD_DEV"
+
+  for_each = toset([
+    "roles/logging.privateLogViewer",
+    "roles/logging.logWriter",
+    "roles/monitoring.editor",
+    "roles/monitoring.metricWriter",
+  ])
+
+  role = each.key
+
+  members = [
+    "serviceAccount:my-gcp-service-account@my-gcp-project.iam.gserviceaccount.com",
+  ]
+}
+
