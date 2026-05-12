@@ -1,0 +1,21 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Real variable files may contain subscription IDs / tenant IDs / emails — keep
+# only the *.example versions in source control.
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+.terraformrc
+terraform.rc
+.terraform.lock.hcl
