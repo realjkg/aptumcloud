@@ -39,6 +39,10 @@ azure/
     └── caf-ai-agent-governance-mapping.md   # Control-by-control traceability matrix
 ```
 
+> **Just want to get started clicking?** See [`QUICKSTART-portal.md`](QUICKSTART-portal.md)
+> for the portal-only path (Azure portal + Power Platform admin center + Copilot
+> Studio + AI Foundry), step-by-step, mapped back to each Terraform file.
+
 ## Build / deploy order
 
 1. **Platform team** — `landing-zones/application-platform/` (idempotent: creates
