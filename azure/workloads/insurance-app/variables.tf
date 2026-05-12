@@ -13,8 +13,9 @@ variable "location" {
 }
 
 variable "spoke_subnet_ids" {
-  description = "Subnet IDs from the application-platform module: keys private_endpoints, power_platform, apim, workload_compute."
+  description = "Subnet IDs from the application-platform module: keys private_endpoints, power_platform, apim, workload_compute. May be left empty when enable_private_endpoints and enable_vnet_injection are both false (demo profile)."
   type        = map(string)
+  default     = {}
 }
 
 variable "central_log_analytics_workspace_id" {
@@ -108,6 +109,33 @@ variable "agents" {
 }
 
 # ---------------------------------------------------------------------------
+# Cost / network posture toggles (see azure/COSTS.md and azure/profiles/)
+# ---------------------------------------------------------------------------
+variable "enable_private_endpoints" {
+  description = "Create private endpoints for the AI plane / Key Vault / APIM and disable their public network access (the secure default). Set false ONLY for a low-cost demo — resources become publicly reachable, so run the governance policies in Audit mode and use non-sensitive data."
+  type        = bool
+  default     = true
+}
+
+variable "enable_vnet_injection" {
+  description = "Inject the Power Platform environments into the spoke VNet (enterprise policy) and run API Management in Internal VNet mode. Set false for a demo without a spoke network."
+  type        = bool
+  default     = true
+}
+
+variable "key_vault_purge_protection" {
+  description = "Enable Key Vault purge protection (recommended for prod). When true, a destroyed vault stays soft-deleted for 90 days and CANNOT be force-purged — the name is unusable for that period. Set false for a demo you intend to tear down and rebuild."
+  type        = bool
+  default     = true
+}
+
+variable "apim_sku_name" {
+  description = "API Management SKU. Developer_1 = non-prod, no SLA (~$50/mo); StandardV2_1 = ~$700/mo, supports VNet; Premium_1 (or more units) = ~$2,800/mo per unit, for prod multi-zone internal VNet; Consumption_0 = serverless pay-per-call, cheapest demo (but Consumption does NOT support Internal VNet, so pair it with enable_vnet_injection=false)."
+  type        = string
+  default     = "Developer_1"
+}
+
+# ---------------------------------------------------------------------------
 # AI Foundry / Azure OpenAI
 # ---------------------------------------------------------------------------
 variable "approved_model_deployments" {
@@ -127,9 +155,21 @@ variable "approved_model_deployments" {
 }
 
 variable "ai_search_sku" {
-  description = "SKU for the grounding Azure AI Search service."
+  description = "SKU for the grounding Azure AI Search service. 'free' = $0 (no SLA, 3 indexes, dev only); 'basic' = ~$75/mo; 'standard' (S1) = ~$245/mo per search unit; higher tiers cost more. Billed while the service exists, idle or not."
   type        = string
   default     = "standard"
+}
+
+variable "ai_search_replica_count" {
+  description = "Azure AI Search replica count. Search units billed = replicas x partitions. Use 1 for demo/dev, 2+ for query SLA, 3+ for indexing+query SLA. Ignored on the 'free' SKU."
+  type        = number
+  default     = 2
+}
+
+variable "ai_search_partition_count" {
+  description = "Azure AI Search partition count (storage/scale). Ignored on the 'free' SKU."
+  type        = number
+  default     = 1
 }
 
 # ---------------------------------------------------------------------------

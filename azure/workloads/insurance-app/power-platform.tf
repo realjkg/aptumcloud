@@ -68,6 +68,7 @@ resource "powerplatform_environment_settings" "this" {
 # firewall) instead of the public internet.
 # ---------------------------------------------------------------------------
 resource "azapi_resource" "powerplatform_vnet_enterprise_policy" {
+  count     = var.enable_vnet_injection ? 1 : 0
   type      = "Microsoft.PowerPlatform/enterprisePolicies@2020-10-30"
   name      = "ep-insurance-app-vnet"
   location  = var.location

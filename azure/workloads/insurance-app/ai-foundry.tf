@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
 # AI plane: Azure AI Foundry hub + project, Azure OpenAI (approved models only,
-# Entra-only auth, private), Azure AI Search for grounding, Azure AI Content
-# Safety with a default blocklist. All private-endpoint only.
+# Entra-only auth), Azure AI Search for grounding, Azure AI Content Safety.
+# Private-endpoint only and public access disabled when enable_private_endpoints
+# = true (the secure default); the demo profile sets it false. See azure/COSTS.md.
 # ---------------------------------------------------------------------------
 
 # --- supporting storage for the AI Foundry hub ----------------------------
@@ -12,7 +13,7 @@ resource "azurerm_storage_account" "ai" {
   account_tier                    = "Standard"
   account_replication_type        = "ZRS"
   min_tls_version                 = "TLS1_2"
-  public_network_access_enabled   = false # deny-ai-public-network-access policy
+  public_network_access_enabled   = !var.enable_private_endpoints # deny-ai-public-network-access policy
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = false
   tags                            = local.common_tags
@@ -26,13 +27,13 @@ resource "azurerm_cognitive_account" "openai" {
   kind                          = "OpenAI"
   sku_name                      = "S0"
   custom_subdomain_name         = "aoai-insurance-app-${substr(sha1(var.insurance_subscription_id), 0, 6)}"
-  local_auth_enabled            = false # deny-cognitive-services-local-auth policy
-  public_network_access_enabled = false # deny-ai-public-network-access policy
+  local_auth_enabled            = false                         # deny-cognitive-services-local-auth policy
+  public_network_access_enabled = !var.enable_private_endpoints # deny-ai-public-network-access policy
 
   identity { type = "SystemAssigned" }
 
   network_acls {
-    default_action = "Deny"
+    default_action = var.enable_private_endpoints ? "Deny" : "Allow"
   }
 
   tags = local.common_tags
@@ -64,11 +65,11 @@ resource "azurerm_cognitive_account" "content_safety" {
   sku_name                      = "S0"
   custom_subdomain_name         = "acs-insurance-app-${substr(sha1(var.insurance_subscription_id), 0, 6)}"
   local_auth_enabled            = false
-  public_network_access_enabled = false
+  public_network_access_enabled = !var.enable_private_endpoints
 
   identity { type = "SystemAssigned" }
 
-  network_acls { default_action = "Deny" }
+  network_acls { default_action = var.enable_private_endpoints ? "Deny" : "Allow" }
   tags = local.common_tags
 }
 
@@ -85,10 +86,10 @@ resource "azurerm_search_service" "grounding" {
   location                      = azurerm_resource_group.ai.location
   resource_group_name           = azurerm_resource_group.ai.name
   sku                           = var.ai_search_sku
-  local_authentication_enabled  = false # force Entra ID auth
-  public_network_access_enabled = false # deny-ai-public-network-access policy
-  partition_count               = 1
-  replica_count                 = 2
+  local_authentication_enabled  = false                         # force Entra ID auth
+  public_network_access_enabled = !var.enable_private_endpoints # deny-ai-public-network-access policy
+  partition_count               = var.ai_search_sku == "free" ? null : var.ai_search_partition_count
+  replica_count                 = var.ai_search_sku == "free" ? null : var.ai_search_replica_count
 
   identity { type = "SystemAssigned" }
   tags = local.common_tags
@@ -101,7 +102,7 @@ resource "azurerm_ai_foundry" "hub" {
   resource_group_name          = azurerm_resource_group.ai.name
   storage_account_id           = azurerm_storage_account.ai.id
   key_vault_id                 = azurerm_key_vault.workload.id
-  public_network_access        = "Disabled"
+  public_network_access        = var.enable_private_endpoints ? "Disabled" : "Enabled"
   high_business_impact_enabled = true
 
   identity { type = "SystemAssigned" }

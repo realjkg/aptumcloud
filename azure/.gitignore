@@ -10,6 +10,9 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 !*.tfvars.example
+# Committed cost/posture profiles (non-secret tuning; subscription/tenant IDs
+# in them are placeholders — override with -var or a private *.tfvars).
+!profiles/**/*.tfvars
 
 override.tf
 override.tf.json

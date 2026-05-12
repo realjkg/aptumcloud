@@ -13,12 +13,12 @@ resource "azurerm_key_vault" "workload" {
   sku_name            = "standard"
 
   enable_rbac_authorization     = true
-  purge_protection_enabled      = true
-  soft_delete_retention_days    = 90
-  public_network_access_enabled = false # required by deny-ai-public-network-access policy
+  purge_protection_enabled      = var.key_vault_purge_protection
+  soft_delete_retention_days    = var.key_vault_purge_protection ? 90 : 7
+  public_network_access_enabled = !var.enable_private_endpoints # required by deny-ai-public-network-access policy
 
   network_acls {
-    default_action = "Deny"
+    default_action = var.enable_private_endpoints ? "Deny" : "Allow"
     bypass         = "AzureServices"
   }
 
@@ -26,6 +26,7 @@ resource "azurerm_key_vault" "workload" {
 }
 
 resource "azurerm_private_endpoint" "key_vault" {
+  count               = var.enable_private_endpoints ? 1 : 0
   name                = "pe-kv-insurance-app"
   location            = azurerm_resource_group.workload.location
   resource_group_name = azurerm_resource_group.workload.name

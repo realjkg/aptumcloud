@@ -12,11 +12,17 @@ resource "azurerm_api_management" "connectors" {
   resource_group_name = azurerm_resource_group.workload.name
   publisher_name      = var.apim_publisher_name
   publisher_email     = var.apim_publisher_email
-  sku_name            = "Developer_1" # use Premium_n for production (VNet + zones + multi-region)
+  sku_name            = var.apim_sku_name # Developer_1 (non-prod) | StandardV2_1 | Premium_1 (prod, VNet+zones) | Consumption_0 (serverless demo)
 
-  virtual_network_type = "Internal"
-  virtual_network_configuration {
-    subnet_id = var.spoke_subnet_ids["apim"]
+  # Internal VNet mode when enable_vnet_injection = true; "None" otherwise (and
+  # for the Consumption SKU, which does not support VNet integration).
+  virtual_network_type = var.enable_vnet_injection ? "Internal" : "None"
+
+  dynamic "virtual_network_configuration" {
+    for_each = var.enable_vnet_injection ? [1] : []
+    content {
+      subnet_id = var.spoke_subnet_ids["apim"]
+    }
   }
 
   identity { type = "SystemAssigned" }
