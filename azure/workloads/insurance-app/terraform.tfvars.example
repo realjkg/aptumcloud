@@ -14,17 +14,17 @@ spoke_subnet_ids = {
 central_log_analytics_workspace_id = "/subscriptions/.../resourceGroups/rg-application-platform-monitoring/providers/Microsoft.OperationalInsights/workspaces/law-application-platform"
 ai_agents_group_object_id          = "33333333-3333-3333-3333-333333333333"
 purview_account_id                 = "" # optional
-cicd_github_repo                   = "realjkg/aptumcloud"
+cicd_github_repo                   = "realjkg/adaptcloud"
 
-agent_owner         = "insurance-engineering@aptum.example"
+agent_owner         = "insurance-engineering@adapt.example"
 data_classification = "Confidential"
 expires_on          = "2026-12-31"
 
 power_platform_location = "unitedstates"
 maker_sharing_limit     = 20
 
-apim_publisher_name  = "Aptum Insurance Platform"
-apim_publisher_email = "platform@aptum.example"
+apim_publisher_name  = "Adapt Insurance Platform"
+apim_publisher_email = "platform@adapt.example"
 
 # Override the connector classification lists / approved models here if needed.
 # approved_model_deployments = [

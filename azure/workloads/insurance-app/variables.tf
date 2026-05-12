@@ -46,7 +46,7 @@ variable "cicd_github_repo" {
 variable "agent_owner" {
   description = "Owning team / DL for the insurance agent platform (agentOwner tag)."
   type        = string
-  default     = "insurance-engineering@aptum.example"
+  default     = "insurance-engineering@adapt.example"
 }
 
 variable "data_classification" {
@@ -275,10 +275,10 @@ variable "custom_connector_allowed_url_patterns" {
 
 variable "apim_publisher_name" {
   type    = string
-  default = "Aptum Insurance Platform"
+  default = "Adapt Insurance Platform"
 }
 
 variable "apim_publisher_email" {
   type    = string
-  default = "platform@aptum.example"
+  default = "platform@adapt.example"
 }

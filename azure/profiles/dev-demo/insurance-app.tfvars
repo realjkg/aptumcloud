@@ -53,9 +53,9 @@ approved_model_deployments = [
   { name = "text-embedding-3-large", model = "text-embedding-3-large", version = "1", capacity = 10 },
 ]
 
-agent_owner         = "demo-team@aptum.example"
+agent_owner         = "demo-team@adapt.example"
 data_classification = "Internal"
 expires_on          = "2026-09-30"
 
-apim_publisher_name  = "Aptum Insurance Platform (demo)"
-apim_publisher_email = "demo-team@aptum.example"
+apim_publisher_name  = "Adapt Insurance Platform (demo)"
+apim_publisher_email = "demo-team@adapt.example"

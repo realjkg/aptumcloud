@@ -33,8 +33,8 @@ ai_search_sku             = "standard"
 ai_search_replica_count   = 3
 ai_search_partition_count = 1
 
-purview_account_id = "/subscriptions/.../resourceGroups/rg-purview/providers/Microsoft.Purview/accounts/purview-aptum"
-cicd_github_repo   = "realjkg/aptumcloud"
+purview_account_id = "/subscriptions/.../resourceGroups/rg-purview/providers/Microsoft.Purview/accounts/purview-adapt"
+cicd_github_repo   = "realjkg/adaptcloud"
 
 # --- dev / test / prod environments + all four agents -----------------------
 power_platform_location = "unitedstates"
@@ -51,7 +51,7 @@ agents = {
     needs_openai         = true
     needs_search         = true
     needs_content_safety = true
-    federated_subjects   = ["repo:realjkg/aptumcloud:environment:insurance-prod"]
+    federated_subjects   = ["repo:realjkg/adaptcloud:environment:insurance-prod"]
   }
   "claims-triage-agent" = {
     purpose              = "First-notice-of-loss triage and routing"
@@ -79,9 +79,9 @@ approved_model_deployments = [
   { name = "text-embedding-3-large", model = "text-embedding-3-large", version = "1", capacity = 30 },
 ]
 
-agent_owner         = "insurance-engineering@aptum.example"
+agent_owner         = "insurance-engineering@adapt.example"
 data_classification = "Confidential"
 expires_on          = "2026-12-31"
 
-apim_publisher_name  = "Aptum Insurance Platform"
-apim_publisher_email = "platform@aptum.example"
+apim_publisher_name  = "Adapt Insurance Platform"
+apim_publisher_email = "platform@adapt.example"

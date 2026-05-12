@@ -16,7 +16,7 @@ module "gke_cluster" {
   source = "terraform-google-modules/kubernetes-engine/google//modules/hardened_cluster"
 
   project_id            = "mystical-button-380517"
-  name                  = "aptumcloud-k8s"
+  name                  = "adaptcloud-k8s"
   region                = "us-central1"
   zones                 = ["us-central1-a", "us-central1-b", "us-central1-c"]
   node_count            = 3
@@ -43,7 +43,7 @@ module "gke_cluster" {
   private_cluster_config = {
     enable_private_endpoint = true
     master_ipv4_cidr_block = "172.16.0.0/28"
-    private_endpoint_dns_zone = "aptumcloud.com"
+    private_endpoint_dns_zone = "adaptcloud.com"
   }
 
   # Configure the GKE cluster to use workload identity and IAM roles for service accounts.
@@ -128,7 +128,7 @@ resource "kubernetes_namespace" "logging
 }
     
 resource "google_organization_iam_binding" "gke_cluster_binding" {
-  org_id = "APTUMCLOUD_DEV"
+  org_id = "ADAPTCLOUD_DEV"
   role = "roles/container.admin"
 
   members = [
@@ -138,7 +138,7 @@ resource "google_organization_iam_binding" "gke_cluster_binding" {
     
 
 resource "google_organization_iam_binding" "gke_cluster_monitoring_binding" {
-  org_id = "APTUMCLOUD_DEV"
+  org_id = "ADAPTCLOUD_DEV"
 
   for_each = toset([
     "roles/logging.privateLogViewer",
@@ -191,7 +191,7 @@ resource "google_kms_crypto_key" "gcr_crypto_key" {
 }
 
 resource "google_storage_bucket" "gcr_bucket" {
-  name     = "aptumcloud-k8s-docker-registry"
+  name     = "adaptcloud-k8s-docker-registry"
   location = "us-central1"
 
   storage_class = "STANDARD"
@@ -208,7 +208,7 @@ resource "google_storage_bucket" "gcr_bucket" {
 
 
 resource "google_service_account" "gcr_service_account" {
-  account_id   = "aptumcloud-k8s-docker-registry"
+  account_id   = "adaptcloud-k8s-docker-registry"
   display_name = "Docker Registry Service Account"
 }
 
@@ -245,19 +245,19 @@ resource "google_service_account_key" "gcr_service_account_key" {
 #encryption blocks and KMS hardening here
     
     resource "google_kms_key_ring" "kms_keyring" {
-  name     = "aptum-k8s-keyring"
+  name     = "adapt-k8s-keyring"
   location = "us-central1"
 }
 
 resource "google_kms_crypto_key" "kms_crypto_key" {
-  name            = "aptum-k8s-crypto-key"
+  name            = "adapt-k8s-crypto-key"
   key_ring        = google_kms_key_ring.kms_keyring.self_link
   rotation_period = "100000s"
 }
 
     
     resource "google_storage_bucket" "encrypted_bucket" {
-  name     = "aptum-k8s-${random_id.bucket_suffix.hex}"
+  name     = "adapt-k8s-${random_id.bucket_suffix.hex}"
   location = "us-central1"
 
   encryption {
@@ -281,7 +281,7 @@ resource "random_id" "bucket_suffix" {
 # Ensure bucket hardening with the keyring config below
     
     resource "google_storage_bucket" "encrypted_bucket" {
-  name     = "aptum-k8s-${random_id.bucket_suffix.hex}"
+  name     = "adapt-k8s-${random_id.bucket_suffix.hex}"
   location = "us-central1"
 
     encryption {

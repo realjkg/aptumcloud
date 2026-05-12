@@ -1,4 +1,4 @@
-# Aptum Cloud — Insurance Agent Platform on Azure
+# Adapt Cloud — Insurance Agent Platform on Azure
 
 Infrastructure-as-code for an **insurance application** built **low-code first**
 (Power Platform + Copilot Studio) and progressively layered with **API
