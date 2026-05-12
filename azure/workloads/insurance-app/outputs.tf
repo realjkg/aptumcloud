@@ -6,17 +6,17 @@ output "workload_summary" {
       ai       = azurerm_resource_group.ai.name
       identity = azurerm_resource_group.identity.name
     }
-    openai_endpoint            = azurerm_cognitive_account.openai.endpoint
-    openai_account_id          = azurerm_cognitive_account.openai.id
-    search_service_id          = azurerm_search_service.grounding.id
-    content_safety_endpoint    = azurerm_cognitive_account.content_safety.endpoint
-    ai_foundry_hub_id          = azurerm_ai_foundry.hub.id
-    ai_foundry_project_id      = azurerm_ai_foundry_project.insurance.id
-    key_vault_uri              = azurerm_key_vault.workload.vault_uri
-    apim_gateway_url           = azurerm_api_management.connectors.gateway_url
+    openai_endpoint             = azurerm_cognitive_account.openai.endpoint
+    openai_account_id           = azurerm_cognitive_account.openai.id
+    search_service_id           = azurerm_search_service.grounding.id
+    content_safety_endpoint     = azurerm_cognitive_account.content_safety.endpoint
+    ai_foundry_hub_id           = azurerm_ai_foundry.hub.id
+    ai_foundry_project_id       = azurerm_ai_foundry_project.insurance.id
+    key_vault_uri               = azurerm_key_vault.workload.vault_uri
+    apim_gateway_url            = azurerm_api_management.connectors.gateway_url
     power_platform_environments = { for k, v in powerplatform_environment.this : k => v.id }
-    model_deployments          = [for d in var.approved_model_deployments : d.name]
-    purview_account_id         = var.purview_account_id
+    model_deployments           = [for d in var.approved_model_deployments : d.name]
+    purview_account_id          = var.purview_account_id
   }
 }
 

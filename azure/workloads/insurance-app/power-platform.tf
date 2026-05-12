@@ -27,11 +27,11 @@ resource "powerplatform_managed_environment" "this" {
   for_each = powerplatform_environment.this
 
   environment_id             = each.value.id
-  is_usage_insights_disabled = false                       # weekly usage insights ON
-  is_group_sharing_disabled  = true                        # block sharing with security groups
+  is_usage_insights_disabled = false # weekly usage insights ON
+  is_group_sharing_disabled  = true  # block sharing with security groups
   limit_sharing_mode         = "ExcludeSharingToSecurityGroups"
-  max_limit_user_sharing     = var.maker_sharing_limit     # cap per-app maker sharing
-  solution_checker_mode      = "block"                     # block publish on Solution Checker errors
+  max_limit_user_sharing     = var.maker_sharing_limit # cap per-app maker sharing
+  solution_checker_mode      = "block"                 # block publish on Solution Checker errors
   suppress_validation_emails = false
   maker_onboarding_markdown  = "Welcome to the insurance agent platform. All connectors are governed by DLP; custom connectors must go through the APIM gateway. Agents must use their assigned Entra Agent ID."
   maker_onboarding_url       = "https://aka.ms/insurance-agent-platform-onboarding"

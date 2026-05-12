@@ -24,7 +24,7 @@ provider "azurerm" {
 # Aliased provider scoped to the workload subscription (used for the spoke network
 # resources that live inside the vended Application landing zone).
 provider "azurerm" {
-  alias           = "workload"
+  alias = "workload"
   features {}
   subscription_id = var.insurance_subscription_id
 }

@@ -28,7 +28,7 @@ resource "azurerm_api_management" "connectors" {
 resource "azurerm_api_management_named_value" "tenant_id" {
   name                = "tenant-id"
   resource_group_name = azurerm_resource_group.workload.name
-  api_management_name  = azurerm_api_management.connectors.name
+  api_management_name = azurerm_api_management.connectors.name
   display_name        = "tenant-id"
   value               = data.azurerm_client_config.current.tenant_id
 }
@@ -84,14 +84,14 @@ locals {
 }
 
 resource "azurerm_api_management_api" "bespoke" {
-  for_each            = local.bespoke_apis
-  name                = each.key
-  resource_group_name = azurerm_resource_group.workload.name
-  api_management_name  = azurerm_api_management.connectors.name
-  revision            = "1"
-  display_name        = each.value.display_name
-  path                = each.value.path
-  protocols           = ["https"]
+  for_each              = local.bespoke_apis
+  name                  = each.key
+  resource_group_name   = azurerm_resource_group.workload.name
+  api_management_name   = azurerm_api_management.connectors.name
+  revision              = "1"
+  display_name          = each.value.display_name
+  path                  = each.value.path
+  protocols             = ["https"]
   subscription_required = false # auth is Entra ID JWT, not subscription keys
 
   import {
@@ -114,7 +114,7 @@ resource "azurerm_application_insights" "apim" {
 # enforced by the ai-agent-governance policy initiative.
 resource "azurerm_api_management_logger" "appinsights" {
   name                = "appinsights"
-  api_management_name  = azurerm_api_management.connectors.name
+  api_management_name = azurerm_api_management.connectors.name
   resource_group_name = azurerm_resource_group.workload.name
   resource_id         = azurerm_application_insights.apim.id
 

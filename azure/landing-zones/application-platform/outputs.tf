@@ -3,11 +3,11 @@
 output "landing_zone_summary" {
   description = "Key identifiers for downstream modules."
   value = {
-    application_platform_mg_id         = local.application_platform_mg_id
-    application_platform_mg_created     = var.create_application_platform_mg
-    insurance_subscription_id          = local.insurance_subscription_id
-    platform_private_dns_zone_ids      = var.platform_private_dns_zone_ids
-    spoke_vnet_id                      = azurerm_virtual_network.spoke.id
+    application_platform_mg_id      = local.application_platform_mg_id
+    application_platform_mg_created = var.create_application_platform_mg
+    insurance_subscription_id       = local.insurance_subscription_id
+    platform_private_dns_zone_ids   = var.platform_private_dns_zone_ids
+    spoke_vnet_id                   = azurerm_virtual_network.spoke.id
     subnet_ids = {
       private_endpoints = azurerm_subnet.private_endpoints.id
       power_platform    = azurerm_subnet.power_platform.id

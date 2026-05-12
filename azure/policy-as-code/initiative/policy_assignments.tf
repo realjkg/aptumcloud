@@ -8,13 +8,13 @@ locals {
 
   # name (in ARM) => source JSON file
   policy_files = {
-    "aiagent-allowed-locations"    = "allowed-ai-locations.json"
-    "aiagent-allowed-aoai-models"  = "allowed-aoai-model-deployments.json"
-    "aiagent-deny-public-network"  = "deny-ai-public-network-access.json"
-    "aiagent-deny-local-auth"      = "deny-cognitive-services-local-auth.json"
+    "aiagent-allowed-locations"      = "allowed-ai-locations.json"
+    "aiagent-allowed-aoai-models"    = "allowed-aoai-model-deployments.json"
+    "aiagent-deny-public-network"    = "deny-ai-public-network-access.json"
+    "aiagent-deny-local-auth"        = "deny-cognitive-services-local-auth.json"
     "aiagent-audit-managed-identity" = "audit-managed-identity-on-agents.json"
-    "aiagent-require-diagnostics"  = "require-diagnostic-settings-ai.json"
-    "aiagent-require-tags"         = "require-agent-resource-tags.json"
+    "aiagent-require-diagnostics"    = "require-diagnostic-settings-ai.json"
+    "aiagent-require-tags"           = "require-agent-resource-tags.json"
   }
 }
 
@@ -24,8 +24,8 @@ resource "azurerm_policy_definition" "this" {
   name                = each.key
   management_group_id = var.management_group_id
 
-  policy_type = "Custom"
-  mode        = jsondecode(file("${local.definitions_dir}/${each.value}")).properties.mode
+  policy_type  = "Custom"
+  mode         = jsondecode(file("${local.definitions_dir}/${each.value}")).properties.mode
   display_name = jsondecode(file("${local.definitions_dir}/${each.value}")).properties.displayName
   description  = jsondecode(file("${local.definitions_dir}/${each.value}")).properties.description
   metadata     = jsonencode(jsondecode(file("${local.definitions_dir}/${each.value}")).properties.metadata)

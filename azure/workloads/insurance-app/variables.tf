@@ -72,12 +72,12 @@ variable "extra_tags" {
 variable "agents" {
   description = "The agents to provision identities for. Each gets a user-assigned managed identity, an Entra app (for the Copilot Studio Entra Agent ID), membership in the ai-agents group, and scoped RBAC."
   type = map(object({
-    purpose                 = string
-    needs_openai            = optional(bool, true)
-    needs_search            = optional(bool, false)
-    needs_content_safety    = optional(bool, true)
-    keyvault_secret_reader  = optional(bool, true)
-    federated_subjects      = optional(list(string), [])
+    purpose                = string
+    needs_openai           = optional(bool, true)
+    needs_search           = optional(bool, false)
+    needs_content_safety   = optional(bool, true)
+    keyvault_secret_reader = optional(bool, true)
+    federated_subjects     = optional(list(string), [])
   }))
   default = {
     "policy-intake-agent" = {
@@ -148,7 +148,7 @@ variable "power_platform_environments" {
     description      = string
   }))
   default = {
-    "insurance-dev" = { environment_type = "Sandbox", description = "Insurance agent platform - development" }
+    "insurance-dev"  = { environment_type = "Sandbox", description = "Insurance agent platform - development" }
     "insurance-test" = { environment_type = "Sandbox", description = "Insurance agent platform - test/UAT" }
     "insurance-prod" = { environment_type = "Production", description = "Insurance agent platform - production" }
   }
@@ -169,7 +169,7 @@ variable "business_connectors" {
   default = [
     "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps", # Microsoft Dataverse
     "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
-    "/providers/Microsoft.PowerApps/apis/shared_office365",                  # Outlook
+    "/providers/Microsoft.PowerApps/apis/shared_office365", # Outlook
     "/providers/Microsoft.PowerApps/apis/shared_office365users",
     "/providers/Microsoft.PowerApps/apis/shared_teams",
     "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
@@ -181,7 +181,7 @@ variable "business_connectors" {
     "/providers/Microsoft.PowerApps/apis/shared_azureopenai",
     "/providers/Microsoft.PowerApps/apis/shared_cognitiveservicestextanalytics",
     "/providers/Microsoft.PowerApps/apis/shared_cognitiveservicescomputervision",
-    "/providers/Microsoft.PowerApps/apis/shared_formrecognizer",             # Document Intelligence
+    "/providers/Microsoft.PowerApps/apis/shared_formrecognizer", # Document Intelligence
     "/providers/Microsoft.PowerApps/apis/shared_aibuilder",
     "/providers/Microsoft.PowerApps/apis/shared_dynamicssmb",
     "/providers/Microsoft.PowerApps/apis/shared_dynamicsnav",
@@ -192,7 +192,7 @@ variable "business_connectors" {
     "/providers/Microsoft.PowerApps/apis/shared_approvals",
     "/providers/Microsoft.PowerApps/apis/shared_flowapproval",
     "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
-    "/providers/Microsoft.PowerApps/apis/shared_word",                       # Word Online (Business)
+    "/providers/Microsoft.PowerApps/apis/shared_word", # Word Online (Business)
     "/providers/Microsoft.PowerApps/apis/shared_powerbi",
     "/providers/Microsoft.PowerApps/apis/shared_azureautomation"
   ]
@@ -220,10 +220,10 @@ variable "blocked_connectors" {
     "/providers/Microsoft.PowerApps/apis/shared_box",
     "/providers/Microsoft.PowerApps/apis/shared_googledrive",
     "/providers/Microsoft.PowerApps/apis/shared_gmail",
-    "/providers/Microsoft.PowerApps/apis/shared_onedrive",                   # consumer OneDrive
-    "/providers/Microsoft.PowerApps/apis/shared_sendmail",                   # SMTP "send as anyone"
-    "/providers/Microsoft.PowerApps/apis/shared_webcontents",                # arbitrary HTTP with auth
-    "/providers/Microsoft.PowerApps/apis/shared_openai"                      # non-Azure OpenAI
+    "/providers/Microsoft.PowerApps/apis/shared_onedrive",    # consumer OneDrive
+    "/providers/Microsoft.PowerApps/apis/shared_sendmail",    # SMTP "send as anyone"
+    "/providers/Microsoft.PowerApps/apis/shared_webcontents", # arbitrary HTTP with auth
+    "/providers/Microsoft.PowerApps/apis/shared_openai"       # non-Azure OpenAI
   ]
 }
 

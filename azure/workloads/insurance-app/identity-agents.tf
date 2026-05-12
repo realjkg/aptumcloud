@@ -158,10 +158,10 @@ output "agent_identities" {
   description = "Per-agent identity details for wiring into Copilot Studio / AI Foundry."
   value = {
     for k in keys(var.agents) : k => {
-      managed_identity_client_id    = azurerm_user_assigned_identity.agent[k].client_id
-      managed_identity_principal_id = azurerm_user_assigned_identity.agent[k].principal_id
-      entra_app_client_id           = azuread_application.agent[k].client_id
-      entra_sp_object_id            = azuread_service_principal.agent[k].object_id
+      managed_identity_client_id     = azurerm_user_assigned_identity.agent[k].client_id
+      managed_identity_principal_id  = azurerm_user_assigned_identity.agent[k].principal_id
+      entra_app_client_id            = azuread_application.agent[k].client_id
+      entra_sp_object_id             = azuread_service_principal.agent[k].object_id
       app_insights_connection_string = azurerm_application_insights.agent[k].connection_string
     }
   }

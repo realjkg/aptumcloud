@@ -18,8 +18,8 @@ resource "powerplatform_data_loss_prevention_policy" "tenant_baseline" {
   environment_type                  = "AllEnvironments"
   environments                      = []
 
-  business_connectors         = []
-  non_business_connectors     = []
+  business_connectors     = []
+  non_business_connectors = []
 
   blocked_connectors = [
     for id in var.blocked_connectors : {
@@ -44,7 +44,7 @@ resource "powerplatform_data_loss_prevention_policy" "insurance" {
 
   # Widest array of template connectivity: certified Microsoft + Azure + LOB
   # connectors that the insurance apps/agents are allowed to use.
-  business_connectors         = [
+  business_connectors = [
     for id in var.business_connectors : {
       id                           = id
       default_action_rule_behavior = "Allow"

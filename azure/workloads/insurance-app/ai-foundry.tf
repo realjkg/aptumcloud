@@ -6,16 +6,16 @@
 
 # --- supporting storage for the AI Foundry hub ----------------------------
 resource "azurerm_storage_account" "ai" {
-  name                          = "stinsai${substr(sha1(var.insurance_subscription_id), 0, 8)}"
-  location                      = azurerm_resource_group.ai.location
-  resource_group_name           = azurerm_resource_group.ai.name
-  account_tier                  = "Standard"
-  account_replication_type      = "ZRS"
-  min_tls_version               = "TLS1_2"
-  public_network_access_enabled = false # deny-ai-public-network-access policy
+  name                            = "stinsai${substr(sha1(var.insurance_subscription_id), 0, 8)}"
+  location                        = azurerm_resource_group.ai.location
+  resource_group_name             = azurerm_resource_group.ai.name
+  account_tier                    = "Standard"
+  account_replication_type        = "ZRS"
+  min_tls_version                 = "TLS1_2"
+  public_network_access_enabled   = false # deny-ai-public-network-access policy
   allow_nested_items_to_be_public = false
-  shared_access_key_enabled     = false
-  tags                          = local.common_tags
+  shared_access_key_enabled       = false
+  tags                            = local.common_tags
 }
 
 # --- Azure OpenAI account --------------------------------------------------
@@ -96,13 +96,13 @@ resource "azurerm_search_service" "grounding" {
 
 # --- Azure AI Foundry hub + project ---------------------------------------
 resource "azurerm_ai_foundry" "hub" {
-  name                          = "aif-insurance-app"
-  location                      = azurerm_resource_group.ai.location
-  resource_group_name           = azurerm_resource_group.ai.name
-  storage_account_id            = azurerm_storage_account.ai.id
-  key_vault_id                  = azurerm_key_vault.workload.id
-  public_network_access         = "Disabled"
-  high_business_impact_enabled  = true
+  name                         = "aif-insurance-app"
+  location                     = azurerm_resource_group.ai.location
+  resource_group_name          = azurerm_resource_group.ai.name
+  storage_account_id           = azurerm_storage_account.ai.id
+  key_vault_id                 = azurerm_key_vault.workload.id
+  public_network_access        = "Disabled"
+  high_business_impact_enabled = true
 
   identity { type = "SystemAssigned" }
   tags = local.common_tags
@@ -112,7 +112,7 @@ resource "azurerm_ai_foundry_project" "insurance" {
   name               = "proj-insurance-agents"
   location           = azurerm_ai_foundry.hub.location
   ai_services_hub_id = azurerm_ai_foundry.hub.id
-  tags = merge(local.common_tags, { agentName = "shared", agentPurpose = "insurance-agent-platform" })
+  tags               = merge(local.common_tags, { agentName = "shared", agentPurpose = "insurance-agent-platform" })
 
   identity { type = "SystemAssigned" }
 }
