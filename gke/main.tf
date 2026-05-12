@@ -104,12 +104,18 @@ module "gke_cluster" {
 
   
   
-  # Create a Kubernetes namespace for the logging and monitoring
-resource "kubernetes_namespace" "logging
-  
-  
-   
- #Begin Cluster Bindings
+# Create a Kubernetes namespace for logging and monitoring
+resource "kubernetes_namespace" "logging" {
+  metadata {
+    name = "logging-monitoring"
+    labels = {
+      managed-by = "terraform"
+      purpose    = "logging-monitoring"
+    }
+  }
+}
+
+#Begin Cluster Bindings
   
   module "gke_monitoring" {
   source  = "terraform-google-modules/kubernetes-engine/google//modules/prometheus"
