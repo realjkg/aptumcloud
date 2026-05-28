@@ -6,17 +6,3 @@ export interface Message {
   content: string;
   createdAt: Date;
 }
-
-export interface ChatRequest {
-  messages: Array<{ role: Role; content: string }>;
-  claimId?: string;
-}
-
-export interface ChatResponse {
-  message: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-}

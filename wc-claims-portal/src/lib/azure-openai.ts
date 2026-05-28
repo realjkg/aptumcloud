@@ -1,5 +1,4 @@
-import { OpenAIClient, AzureKeyCredential } from "@azure/openai";
-import type { ChatRequestMessage } from "@azure/openai";
+import { OpenAIClient, AzureKeyCredential, type ChatRequestMessage } from "@azure/openai";
 
 export { type ChatRequestMessage };
 

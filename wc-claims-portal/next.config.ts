@@ -2,9 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  experimental: {
-    serverComponentsExternalPackages: ["@azure/openai"],
-  },
+  serverExternalPackages: ["@azure/openai"],
   images: {
     remotePatterns: [
       {

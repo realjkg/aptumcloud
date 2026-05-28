@@ -1,12 +1,22 @@
 import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 
+const clientId = process.env.AZURE_AD_CLIENT_ID;
+const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
+const tenantId = process.env.AZURE_AD_TENANT_ID;
+
+if (!clientId || !clientSecret || !tenantId) {
+  throw new Error(
+    "AZURE_AD_CLIENT_ID, AZURE_AD_CLIENT_SECRET, and AZURE_AD_TENANT_ID must be set"
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID!,
+      clientId,
+      clientSecret,
+      tenantId,
       authorization: {
         params: {
           scope: "openid profile email offline_access",

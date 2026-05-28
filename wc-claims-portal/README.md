@@ -171,7 +171,6 @@ Copy `.env.example` to `.env.local` for local development. For production, set t
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI resource → Keys and Endpoint | Yes |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI resource → Keys and Endpoint | Yes |
 | `AZURE_OPENAI_DEPLOYMENT_NAME` | Azure OpenAI → Model deployments (e.g. `gpt-4o`) | Yes |
-| `AZURE_OPENAI_API_VERSION` | API version string (default: `2024-10-21`) | No |
 | `NEXT_PUBLIC_APP_NAME` | Display name shown in the UI | No |
 | `NEXT_PUBLIC_ORG_NAME` | Organization name shown in the sidebar | No |
 

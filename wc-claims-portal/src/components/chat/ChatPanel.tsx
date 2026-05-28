@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+
+const uid = () => crypto.randomUUID();
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { clsx } from "clsx";
@@ -9,9 +11,6 @@ import type { Message } from "@/types/chat";
 interface Props {
   claimId?: string;
 }
-
-let _msgId = 0;
-const uid = () => `msg-${++_msgId}-${Date.now()}`;
 
 export function ChatPanel({ claimId }: Props) {
   const [messages, setMessages] = useState<Message[]>([
@@ -27,7 +26,6 @@ export function ChatPanel({ claimId }: Props) {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -88,23 +86,21 @@ export function ChatPanel({ claimId }: Props) {
           const data = line.slice(6);
           if (data === "[DONE]") break;
 
+          let parsed: { content?: string; error?: string };
           try {
-            const parsed = JSON.parse(data) as {
-              content?: string;
-              error?: string;
-            };
-            if (parsed.error) throw new Error(parsed.error);
-            if (parsed.content) {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId
-                    ? { ...m, content: m.content + parsed.content! }
-                    : m
-                )
-              );
-            }
+            parsed = JSON.parse(data);
           } catch {
-            // ignore malformed chunks
+            continue; // ignore malformed chunks
+          }
+          if (parsed.error) throw new Error(parsed.error);
+          if (parsed.content) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: m.content + parsed.content }
+                  : m
+              )
+            );
           }
         }
       }
@@ -157,7 +153,6 @@ export function ChatPanel({ claimId }: Props) {
       <div className="px-4 py-3 border-t border-slate-100">
         <div className="flex gap-2 items-end">
           <textarea
-            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
