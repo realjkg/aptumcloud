@@ -39,12 +39,17 @@ resource "azuread_application" "agent" {
   sign_in_audience               = "AzureADMyOrg"
   fallback_public_client_enabled = false
 
-  tags = ["ai-agent", "insurance", "workload:insurance-agent-platform", "agent:${each.key}"]
-
-  feature_tags {
-    enterprise = true
-    hide       = true
-  }
+  # azuread_application's `tags` and `feature_tags` are mutually exclusive. The
+  # two magic values below are exactly what `feature_tags { enterprise = true,
+  # hide = true }` sets: surface as an enterprise app, hidden from My Apps.
+  tags = [
+    "ai-agent",
+    "insurance",
+    "workload:insurance-agent-platform",
+    "agent:${each.key}",
+    "WindowsAzureActiveDirectoryIntegratedApp",
+    "HideApp",
+  ]
 }
 
 resource "azuread_service_principal" "agent" {

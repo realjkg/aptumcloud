@@ -144,7 +144,7 @@ resource "azurerm_monitor_diagnostic_setting" "openai" {
   log_analytics_workspace_id = var.central_log_analytics_workspace_id
   enabled_log { category_group = "allLogs" }
   enabled_log { category_group = "audit" }
-  metric { category = "AllMetrics" }
+  enabled_metric { category = "AllMetrics" }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "search" {
@@ -152,7 +152,7 @@ resource "azurerm_monitor_diagnostic_setting" "search" {
   target_resource_id         = azurerm_search_service.grounding.id
   log_analytics_workspace_id = var.central_log_analytics_workspace_id
   enabled_log { category = "OperationLogs" }
-  metric { category = "AllMetrics" }
+  enabled_metric { category = "AllMetrics" }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "content_safety" {
@@ -160,5 +160,5 @@ resource "azurerm_monitor_diagnostic_setting" "content_safety" {
   target_resource_id         = azurerm_cognitive_account.content_safety.id
   log_analytics_workspace_id = var.central_log_analytics_workspace_id
   enabled_log { category_group = "allLogs" }
-  metric { category = "AllMetrics" }
+  enabled_metric { category = "AllMetrics" }
 }

@@ -52,12 +52,22 @@ jobs:
       - uses: terraform-linters/setup-tflint@v4
         with:
           tflint_version: latest
+          # Authenticated GitHub API calls so resolving the tflint release and
+          # downloading the azurerm ruleset plugin don't hit the 60/hr anonymous
+          # rate limit (the cause of earlier CI failures).
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      # The .tflint.hcl (terraform + azurerm rulesets) lives at the repo root, so
+      # point at it explicitly — the job's working-directory is the module.
       - name: tflint --init
-        run: tflint --init
+        run: tflint --init --config "${{ github.workspace }}/.tflint.hcl"
         working-directory: ${{ matrix.module }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: tflint
-        run: tflint --format compact --recursive=false
+        run: tflint --format compact --recursive=false --config "${{ github.workspace }}/.tflint.hcl"
         working-directory: ${{ matrix.module }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   validate:
     name: terraform validate (${{ matrix.module }})

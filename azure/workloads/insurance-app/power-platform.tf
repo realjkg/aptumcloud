@@ -16,9 +16,9 @@ resource "powerplatform_environment" "this" {
   description      = each.value.description
 
   dataverse = {
-    language_code     = 1033
-    currency_code     = "USD"
-    security_group_id = "" # set to the environment's Entra security group object id to restrict membership
+    language_code = 1033
+    currency_code = "USD"
+    # security_group_id = "<entra-group-guid>" # optional: restrict environment membership (must be a valid GUID if set)
   }
 }
 
@@ -31,7 +31,7 @@ resource "powerplatform_managed_environment" "this" {
   is_group_sharing_disabled  = true  # block sharing with security groups
   limit_sharing_mode         = "ExcludeSharingToSecurityGroups"
   max_limit_user_sharing     = var.maker_sharing_limit # cap per-app maker sharing
-  solution_checker_mode      = "block"                 # block publish on Solution Checker errors
+  solution_checker_mode      = "Block"                 # block publish on Solution Checker errors
   suppress_validation_emails = false
   maker_onboarding_markdown  = "Welcome to the insurance agent platform. All connectors are governed by DLP; custom connectors must go through the APIM gateway. Agents must use their assigned Entra Agent ID."
   maker_onboarding_url       = "https://aka.ms/insurance-agent-platform-onboarding"
@@ -69,7 +69,7 @@ resource "powerplatform_environment_settings" "this" {
 # ---------------------------------------------------------------------------
 resource "azapi_resource" "powerplatform_vnet_enterprise_policy" {
   count     = var.enable_vnet_injection ? 1 : 0
-  type      = "Microsoft.PowerPlatform/enterprisePolicies@2020-10-30"
+  type      = "Microsoft.PowerPlatform/enterprisePolicies@2020-10-30-preview"
   name      = "ep-insurance-app-vnet"
   location  = var.location
   parent_id = azurerm_resource_group.workload.id

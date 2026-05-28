@@ -12,7 +12,7 @@ resource "azurerm_key_vault" "workload" {
   tenant_id           = data.azurerm_client_config.current.tenant_id
   sku_name            = "standard"
 
-  enable_rbac_authorization     = true
+  rbac_authorization_enabled    = true
   purge_protection_enabled      = var.key_vault_purge_protection
   soft_delete_retention_days    = var.key_vault_purge_protection ? 90 : 7
   public_network_access_enabled = !var.enable_private_endpoints # required by deny-ai-public-network-access policy
@@ -50,5 +50,5 @@ resource "azurerm_monitor_diagnostic_setting" "key_vault" {
 
   enabled_log { category = "AuditEvent" }
   enabled_log { category = "AzurePolicyEvaluationDetails" }
-  metric { category = "AllMetrics" }
+  enabled_metric { category = "AllMetrics" }
 }

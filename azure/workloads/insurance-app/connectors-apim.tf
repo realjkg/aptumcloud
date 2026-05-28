@@ -135,7 +135,7 @@ resource "azurerm_monitor_diagnostic_setting" "apim" {
   log_analytics_workspace_id = var.central_log_analytics_workspace_id
   enabled_log { category = "GatewayLogs" }
   enabled_log { category = "WebSocketConnectionLogs" }
-  metric { category = "AllMetrics" }
+  enabled_metric { category = "AllMetrics" }
 }
 
 # NOTE on custom connectors: once APIM is up, run "APIM -> API -> Export ->
