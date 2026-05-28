@@ -59,6 +59,76 @@ Each directory has its own `README.md`, `providers.tf`, `variables.tf`, and
 `terraform.tfvars.example`. Nothing here is meant to go straight to production —
 review, parameterize, and run through your own pipeline first.
 
+## Sandbox quickstart (dev-demo)
+
+The cheapest way to actually exercise the use case. Uses the
+[`profiles/dev-demo`](profiles/) posture (~$80–150/mo: public endpoints,
+Consumption APIM, Basic AI Search, one Power Platform sandbox, one agent). **Demo
+data only** — public endpoints mean the network-isolation guardrails are off.
+
+### Prerequisites
+
+- **Terraform ≥ 1.6** and **Azure CLI** — `az login` then `az account set --subscription <sandbox-sub-id>`.
+- Providers are pulled on `terraform init`: `azurerm` ~4, `azuread` ~3, `azapi` ~2, `microsoft/power-platform` ~3.
+- **Permissions** in the sandbox subscription:
+  - **Owner** *and* **User Access Administrator** (the modules create RBAC role assignments).
+  - Entra: rights to create **app registrations** + a **security group** (Application Administrator / Application Developer).
+  - Full-stack path only: **Management Group Contributor** + **Resource Policy Contributor** at the MG scope.
+- **Power Platform**: the signed-in principal must be a **Power Platform Service Admin** (the provider uses `use_cli = true`), and the tenant needs available **Dataverse capacity** to create the environment. No capacity? See the caveat below.
+
+### Path A — workload only (fastest; skips landing zone + policy)
+
+Deploy just the agent workload into an existing sandbox subscription. Pre-create
+(or reuse) a **Log Analytics workspace** and an **Entra security group** (can be
+empty) and grab their IDs.
+
+```bash
+cd azure/workloads/insurance-app
+terraform init
+terraform apply \
+  -var-file=../../profiles/dev-demo/insurance-app.tfvars \
+  -var insurance_subscription_id=<sandbox-sub-id> \
+  -var central_log_analytics_workspace_id=<existing-law-resource-id> \
+  -var ai_agents_group_object_id=<existing-group-object-id>
+```
+
+No VNet, no private endpoints, Consumption APIM, Basic AI Search, one Power
+Platform sandbox env, one agent identity.
+
+> **No Power Platform capacity (or you only want the Azure AI plane)?** Apply
+> just those resources, e.g. `-target=azurerm_cognitive_account.openai -target=azurerm_cognitive_deployment.approved -target=azurerm_search_service.grounding -target=azurerm_key_vault.workload`. Ask if you'd like an `enable_power_platform` toggle added so this is a single flag instead.
+
+### Path B — full stack with governance
+
+1. `landing-zones/application-platform` with `-var-file=../../profiles/dev-demo/application-platform.tfvars` (+ your real IDs).
+2. `policy-as-code/initiative` — **assign with `-var enforcement_mode=DoNotEnforce`.**
+   **IMPORTANT:** the dev-demo workload uses **public endpoints**; if you assign the
+   initiative in its default **Deny** mode, the `deny-ai-public-network-access`
+   (and `deny-cognitive-services-local-auth`) policies will **block the workload
+   apply**. `DoNotEnforce` still evaluates compliance (so you see what *would*
+   fail) without blocking. Switch to `Default` once you move to the `prod`
+   profile (private endpoints).
+3. `workloads/insurance-app` with the dev-demo profile, feeding the landing-zone
+   outputs (`spoke_subnet_ids`, `central_log_analytics_workspace_id`,
+   `ai_agents_group_object_id`).
+
+### Verify
+
+- `terraform output workload_summary` and `terraform output agent_identities`.
+- Azure portal: the Azure OpenAI account + the two model deployments, Key Vault, per-agent Application Insights.
+- Power Platform admin center: the `insurance-demo` **Managed Environment** + the connector **DLP policy**.
+- Copilot Studio: create an agent in `insurance-demo` — it gets an **Entra Agent ID**; confirm it lands in the `ai-agents` group in Entra. (Walkthrough: [`QUICKSTART-portal.md`](QUICKSTART-portal.md) step 4.)
+
+### Tear down
+
+```bash
+terraform destroy   # same -var-file / -var flags as apply
+```
+
+With the dev-demo profile (`key_vault_purge_protection = false`, Consumption
+APIM, Basic AI Search) nothing lingers or blocks a rebuild. Full teardown
+gotchas (purge protection, soft-delete) are in [`COSTS.md`](COSTS.md).
+
 ## Design principles (from the CAF article)
 
 | Principle | How it shows up here |

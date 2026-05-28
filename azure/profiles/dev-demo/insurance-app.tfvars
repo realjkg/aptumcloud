@@ -1,8 +1,13 @@
 # ---------------------------------------------------------------------------
 # Profile: dev-demo  ->  azure/workloads/insurance-app
-# ~$80-150/month idle. PUBLIC endpoints, no VNet — run the ai-agent-governance
-# policy initiative in Audit mode and use NON-SENSITIVE demo data only.
+# ~$80-150/month idle. PUBLIC endpoints, no VNet — NON-SENSITIVE demo data only.
 # Replace the placeholder IDs below via a separate gitignored ids.tfvars / -var.
+#
+# IMPORTANT: this profile uses public endpoints. If you ALSO deploy azure/policy-as-code,
+#    assign the initiative with `-var enforcement_mode=DoNotEnforce` (or skip the
+#    policy module) — otherwise deny-ai-public-network-access /
+#    deny-cognitive-services-local-auth will BLOCK this apply. See azure/README.md
+#    "Sandbox quickstart".
 # ---------------------------------------------------------------------------
 
 # --- placeholders: override these --------------------------------------------
