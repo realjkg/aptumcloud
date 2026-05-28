@@ -5,6 +5,7 @@ import {
   getAzureOpenAIClient,
   DEPLOYMENT,
   WC_SYSTEM_PROMPT,
+  type ChatRequestMessage,
 } from "@/lib/azure-openai";
 import { z } from "zod";
 
@@ -52,31 +53,32 @@ export async function POST(req: NextRequest) {
     ? `${WC_SYSTEM_PROMPT}\n\n## Active Claim Context\nClaim ID: ${claimId}`
     : WC_SYSTEM_PROMPT;
 
-  const openai = getAzureOpenAIClient();
+  const client = getAzureOpenAIClient();
+
+  const chatMessages: ChatRequestMessage[] = [
+    { role: "system", content: systemContent },
+    ...messages,
+  ];
 
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
 
       try {
-        const completion = await openai.chat.completions.create({
-          model: DEPLOYMENT,
-          messages: [
-            { role: "system", content: systemContent },
-            ...messages,
-          ],
-          stream: true,
-          max_tokens: 2048,
-          temperature: 0.2,
-        });
+        const events = await client.streamChatCompletions(
+          DEPLOYMENT,
+          chatMessages,
+          { maxTokens: 2048, temperature: 0.2 }
+        );
 
-        for await (const chunk of completion) {
-          const delta = chunk.choices[0]?.delta?.content;
-          if (delta) {
-            // Server-Sent Events format
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ content: delta })}\n\n`)
-            );
+        for await (const event of events) {
+          for (const choice of event.choices) {
+            const delta = choice.delta?.content;
+            if (delta) {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ content: delta })}\n\n`)
+              );
+            }
           }
         }
 

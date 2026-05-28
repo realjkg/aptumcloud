@@ -1,16 +1,15 @@
-import { AzureOpenAI } from "@azure/openai";
-import type { ChatCompletionMessageParam } from "@azure/openai/resources";
+import { OpenAIClient, AzureKeyCredential } from "@azure/openai";
+import type { ChatRequestMessage } from "@azure/openai";
 
-export { type ChatCompletionMessageParam };
+export { type ChatRequestMessage };
 
 // Singleton client — reused across hot-reloads in dev
-let _client: AzureOpenAI | null = null;
+let _client: OpenAIClient | null = null;
 
-export function getAzureOpenAIClient(): AzureOpenAI {
+export function getAzureOpenAIClient(): OpenAIClient {
   if (!_client) {
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
     const apiKey = process.env.AZURE_OPENAI_API_KEY;
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION ?? "2024-10-21";
 
     if (!endpoint || !apiKey) {
       throw new Error(
@@ -18,7 +17,7 @@ export function getAzureOpenAIClient(): AzureOpenAI {
       );
     }
 
-    _client = new AzureOpenAI({ endpoint, apiKey, apiVersion });
+    _client = new OpenAIClient(endpoint, new AzureKeyCredential(apiKey));
   }
   return _client;
 }
