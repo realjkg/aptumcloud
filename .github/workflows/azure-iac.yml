@@ -64,7 +64,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: tflint
-        run: tflint --format compact --recursive=false --config "${{ github.workspace }}/.tflint.hcl"
+        run: tflint --format compact --config "${{ github.workspace }}/.tflint.hcl"
         working-directory: ${{ matrix.module }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
