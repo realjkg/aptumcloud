@@ -1,212 +1,405 @@
 # WC Claims Agent Portal
 
-An AI-assisted Workers' Compensation claims management portal built with Next.js 14, authenticated via Azure Active Directory, and powered by Azure OpenAI. Designed to deploy to Azure Static Web Apps with a GitHub Actions CI/CD pipeline.
+An AI-assisted Workers' Compensation claims management portal. Adjusters sign in with their Microsoft work account, open a claim, and interact with a streaming AI assistant that is pre-loaded with WC-domain knowledge and jurisdiction-specific context for the active claim.
+
+Built with Next.js 14 App Router · Azure AD (Entra ID) · Azure OpenAI · Azure Static Web Apps.
 
 ---
 
 ## Table of Contents
 
-- [Architecture Overview](#architecture-overview)
+- [Architecture](#architecture)
+  - [Demo Mode](#demo-mode)
+  - [Production Mode](#production-mode)
+  - [Data Mode Decision](#data-mode-decision)
 - [Prerequisites](#prerequisites)
-- [Azure Setup](#azure-setup)
-  - [1. Azure AD App Registration](#1-azure-ad-app-registration)
-  - [2. Azure OpenAI Resource](#2-azure-openai-resource)
-  - [3. Azure Static Web App](#3-azure-static-web-app)
-- [Local Development](#local-development)
-- [Environment Variables](#environment-variables)
-- [GitHub Actions Deployment](#github-actions-deployment)
+- [Deployment: Demo Mode](#deployment-demo-mode)
+- [Deployment: Production Mode](#deployment-production-mode)
+- [Azure Infrastructure (Bicep)](#azure-infrastructure-bicep)
+- [Environment Variables Reference](#environment-variables-reference)
+- [MFA Enforcement](#mfa-enforcement)
+- [GitHub Actions CI/CD](#github-actions-cicd)
+- [GitHub Copilot Compatibility](#github-copilot-compatibility)
 - [Project Structure](#project-structure)
 - [Key Routes](#key-routes)
 - [Security Notes](#security-notes)
 
 ---
 
-## Architecture Overview
+## Architecture
+
+### Demo Mode
+
+Used for evaluation, internal showcasing, and development. No external claims system required. Seed data covers 10 realistic WC claims across the 10 largest US WC jurisdictions (CA, TX, FL, NY, IL, GA, WA, PA, OH, CO).
 
 ```
 Browser
   │
-  ├─► Azure Static Web Apps (hosts Next.js standalone build)
-  │       │
-  │       ├─► /api/auth/*   — NextAuth.js  ──► Azure AD (Entra ID)
-  │       │
-  │       └─► /api/chat     — Streaming SSE ──► Azure OpenAI (GPT-4o)
-  │
-  └─► Auth flow: Azure AD OAuth2 → JWT session → protected routes via Next.js middleware
+  │  HTTPS / Azure AD session
+  ▼
+┌─────────────────────────────────────────────────────┐
+│              Azure Static Web Apps                  │
+│                                                     │
+│  ┌─────────────────┐   ┌───────────────────────┐   │
+│  │   React UI       │   │    Next.js API routes  │   │
+│  │  Dashboard        │   │                       │   │
+│  │  Claims table     │   │  /api/auth  ──────────┼───┼──► Entra ID (Azure AD)
+│  │  Claim detail     │   │  /api/claims ─────────┼───┼──► DemoClaimsAdapter
+│  │  AI chat panel    │   │  /api/chat  ──────────┼───┼──► Azure OpenAI (GPT-4o)
+│  └─────────────────┘   └───────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+                                          │
+                              DemoClaimsAdapter
+                              (in-memory seed data —
+                               10 claims, no DB needed)
 ```
 
-- **Frontend**: Next.js 14 App Router, Tailwind CSS, React
-- **Auth**: NextAuth.js v4 with `AzureADProvider` (JWT strategy, 8-hour sessions)
-- **AI**: `@azure/openai` SDK streaming chat completions
-- **Infra**: Azure Static Web Apps (Standard tier required for API routes)
-- **CI/CD**: GitHub Actions via `.azure/deploy.yml`
+### Production Mode
+
+Connects to your existing claims management system (ClaimCenter, Majesco, Duck Creek, or custom API) via the `ProductionClaimsAdapter`. All other components — auth, AI, hosting — remain identical.
+
+```
+Browser
+  │
+  │  HTTPS / Azure AD session (MFA enforced)
+  ▼
+┌─────────────────────────────────────────────────────┐
+│              Azure Static Web Apps                  │
+│                                                     │
+│  ┌─────────────────┐   ┌───────────────────────┐   │
+│  │   React UI       │   │    Next.js API routes  │   │
+│  │  Dashboard        │   │                       │   │
+│  │  Claims table     │   │  /api/auth  ──────────┼───┼──► Entra ID (Azure AD)
+│  │  Claim detail     │   │  /api/claims ─────────┼───┼──► ProductionClaimsAdapter
+│  │  AI chat panel    │   │  /api/chat  ──────────┼───┼──► Azure OpenAI (GPT-4o)
+│  └─────────────────┘   └───────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+                                          │
+                              ProductionClaimsAdapter
+                                          │
+                              CLAIMS_API_BASE_URL
+                              (your CMS REST API)
+                                          │
+                              ┌───────────────────────┐
+                              │  Claims Management     │
+                              │  System                │
+                              │  (ClaimCenter /        │
+                              │   Majesco / custom)    │
+                              └───────────────────────┘
+```
+
+### Data Mode Decision
+
+The mode is set by a single environment variable evaluated at startup. Nothing else in the application changes.
+
+```
+CLAIMS_DATA_MODE=demo        → DemoClaimsAdapter   (seeded in-memory, zero dependencies)
+CLAIMS_DATA_MODE=production  → ProductionClaimsAdapter  (live CMS API)
+```
+
+The adapter pattern means the entire UI, AI integration, and auth layer are identical in both modes. Switching from Demo to Production is a configuration change, not a code change.
+
+**ClaimsAdapter interface** — the contract both adapters must satisfy:
+
+```typescript
+interface ClaimsAdapter {
+  listClaims(): Promise<ClaimSummary[]>
+  getClaim(id: string): Promise<Claim | null>
+  getDashboardMetrics(): Promise<DashboardMetrics>
+  getRecentActivity(limit?: number): Promise<ActivityItem[]>
+}
+```
 
 ---
 
 ## Prerequisites
 
 - Node.js 20+
-- An Azure subscription with the following permissions:
-  - Entra ID (Azure AD): Application Administrator or Global Administrator
-  - Ability to create Azure OpenAI resources (requires approved access)
-  - Ability to create Static Web App resources
+- Azure subscription with:
+  - Entra ID: Application Administrator or Global Administrator role
+  - Azure OpenAI access approved ([request here](https://aka.ms/oai/access) — takes 1–2 business days)
+  - Ability to create Static Web App resources (Standard tier)
 - GitHub repository connected to your Azure subscription
 
 ---
 
-## Azure Setup
+## Deployment: Demo Mode
 
-### 1. Azure AD App Registration
+Demo mode requires no claims management system. Complete these steps in order.
 
-This controls who can sign in to the portal.
-
-1. Go to [portal.azure.com](https://portal.azure.com) → **Entra ID** → **App registrations** → **New registration**
-
-2. Fill in:
-   - **Name**: `wc-claims-portal` (or your preferred name)
-   - **Supported account types**: *Accounts in this organizational directory only* (single tenant)
-   - **Redirect URI**: Select **Web** and enter:
-     - `http://localhost:3000/api/auth/callback/azure-ad` (local dev)
-     - `https://<your-swa-hostname>/api/auth/callback/azure-ad` (production — add after SWA is created)
-
-3. After creation, note the following from the **Overview** tab:
-   - **Application (client) ID** → `AZURE_AD_CLIENT_ID`
-   - **Directory (tenant) ID** → `AZURE_AD_TENANT_ID`
-
-4. Go to **Certificates & secrets** → **New client secret**:
-   - Set an expiry (12 or 24 months recommended)
-   - Copy the **Value** immediately (it won't be shown again) → `AZURE_AD_CLIENT_SECRET`
-
-5. Go to **Authentication** → under **Implicit grant and hybrid flows**, ensure **ID tokens** is checked.
-
-6. *(Optional)* Go to **App roles** to define roles like `Claims.Adjuster`, `Claims.Supervisor`. Users assigned these roles will have them forwarded in the session token.
-
----
-
-### 2. Azure OpenAI Resource
-
-1. Go to **Azure OpenAI** in the portal → **Create**
-   - Select your subscription, resource group, region, and a unique name
-   - **Pricing tier**: Standard S0
-
-2. After deployment, go to the resource → **Keys and Endpoint**:
-   - **Endpoint** → `AZURE_OPENAI_ENDPOINT` (format: `https://<name>.openai.azure.com`)
-   - **Key 1** → `AZURE_OPENAI_API_KEY`
-
-3. Go to **Model deployments** → **Deploy model**:
-   - Select `gpt-4o` (or `gpt-4o-mini` for lower cost)
-   - Set a deployment name (e.g., `gpt-4o`) → `AZURE_OPENAI_DEPLOYMENT_NAME`
-   - Note the API version in use → `AZURE_OPENAI_API_VERSION` (default: `2024-10-21`)
-
-> **Note**: Azure OpenAI access requires approval. If you don't have it yet, request access at [aka.ms/oai/access](https://aka.ms/oai/access). Approval typically takes 1–2 business days.
-
----
-
-### 3. Azure Static Web App
-
-> **Important**: Use the **Standard** tier. The Free tier does not support custom API (Next.js server routes). Standard is ~$9/month.
-
-1. Go to **Static Web Apps** → **Create**
-   - **Subscription / Resource group**: your choice
-   - **Name**: `wc-claims-portal`
-   - **Plan type**: Standard
-   - **Region**: choose one close to your users
-   - **Deployment source**: GitHub
-   - **Organization / Repository / Branch**: point to this repo and `main`
-   - **Build presets**: Custom
-   - **App location**: `wc-claims-portal`
-   - **Output location**: `.next/standalone`
-   - **Skip build**: We handle build in GitHub Actions, so this can be left blank
-
-2. After creation, go to the resource → **Manage deployment token**:
-   - Copy the token → `AZURE_STATIC_WEB_APPS_API_TOKEN` (add to GitHub secrets, see below)
-
-3. Go to **Configuration** → **Application settings** and add every environment variable from the [Environment Variables](#environment-variables) section below. These are the runtime secrets the app reads server-side.
-
-4. Add the production redirect URI back to your App Registration:
-   - Copy the SWA hostname (e.g., `https://agreeable-sky-0abc123.1.azurestaticapps.net`)
-   - In Entra ID → App registration → **Authentication** → add:
-     `https://<swa-hostname>/api/auth/callback/azure-ad`
-
----
-
-## Local Development
+### Step 1 — Entra ID App Registration
 
 ```bash
-# 1. Clone and enter the portal directory
-git clone https://github.com/realjkg/adaptcloud.git
-cd adaptcloud/wc-claims-portal
+# Create the registration
+az ad app create \
+  --display-name "wc-claims-portal-dev" \
+  --sign-in-audience AzureADMyOrg \
+  --web-redirect-uris "http://localhost:3000/api/auth/callback/azure-ad"
 
-# 2. Install dependencies
-npm install
+# Get Client ID and Tenant ID
+az ad app list --display-name "wc-claims-portal-dev" \
+  --query "[0].{clientId:appId}" -o tsv
 
-# 3. Set up environment
-cp .env.example .env.local
-# Edit .env.local with your real Azure values (see Environment Variables below)
+az account show --query tenantId -o tsv
 
-# 4. Generate a NextAuth secret if you don't have one
-openssl rand -base64 32
-# Paste the output as NEXTAUTH_SECRET in .env.local
-
-# 5. Run the dev server
-npm run dev
-# Open http://localhost:3000
+# Create a client secret (copy the 'value' — shown once only)
+APP_ID=$(az ad app list --display-name "wc-claims-portal-dev" --query "[0].appId" -o tsv)
+az ad app credential reset --id $APP_ID --years 2
 ```
 
-On first load you will be redirected to `/auth/signin`. Click **Sign in with Microsoft** — this triggers the Azure AD OAuth flow. You must have a valid account in the tenant configured in `AZURE_AD_TENANT_ID`.
+Save: `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`
+
+### Step 2 — Deploy Azure infrastructure
+
+```bash
+cd wc-claims-portal
+
+# Review region and prefix in infra/main.bicepparam, then:
+./infra/deploy.sh <your-azure-subscription-id>
+```
+
+The script prints all four output values on completion. Copy them.
+
+### Step 3 — Retrieve the OpenAI API key
+
+```bash
+az cognitiveservices account keys list \
+  --resource-group rg-adaptcloud-wc-claims-dev \
+  --name oai-adaptcloud-wc-claims-dev \
+  --query key1 -o tsv
+```
+
+Save as `AZURE_OPENAI_API_KEY`.
+
+### Step 4 — Generate NextAuth secret
+
+```bash
+openssl rand -base64 32
+```
+
+Save as `NEXTAUTH_SECRET`.
+
+### Step 5 — Set GitHub Actions secrets
+
+**Repo → Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | Value |
+|---|---|
+| `NEXTAUTH_URL` | `https://<swa-hostname>` from deploy output |
+| `NEXTAUTH_SECRET` | from Step 4 |
+| `AZURE_AD_CLIENT_ID` | from Step 1 |
+| `AZURE_AD_CLIENT_SECRET` | from Step 1 |
+| `AZURE_AD_TENANT_ID` | from Step 1 |
+| `AZURE_OPENAI_ENDPOINT` | from deploy output |
+| `AZURE_OPENAI_API_KEY` | from Step 3 |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | from deploy output (`gpt-4o`) |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | from deploy output |
+| `CLAIMS_DATA_MODE` | `demo` |
+
+### Step 6 — Set SWA Application Settings (runtime)
+
+```bash
+az staticwebapp appsettings set \
+  --name swa-adaptcloud-wc-claims-dev \
+  --resource-group rg-adaptcloud-wc-claims-dev \
+  --setting-names \
+    NEXTAUTH_URL="https://<swa-hostname>" \
+    NEXTAUTH_SECRET="<value>" \
+    AZURE_AD_CLIENT_ID="<value>" \
+    AZURE_AD_CLIENT_SECRET="<value>" \
+    AZURE_AD_TENANT_ID="<value>" \
+    AZURE_OPENAI_ENDPOINT="<value>" \
+    AZURE_OPENAI_API_KEY="<value>" \
+    AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o" \
+    CLAIMS_DATA_MODE="demo"
+```
+
+### Step 7 — Add the production redirect URI
+
+```bash
+APP_ID=$(az ad app list --display-name "wc-claims-portal-dev" --query "[0].appId" -o tsv)
+az ad app update --id $APP_ID \
+  --web-redirect-uris \
+    "http://localhost:3000/api/auth/callback/azure-ad" \
+    "https://<swa-hostname>/api/auth/callback/azure-ad"
+```
+
+### Step 8 — Trigger first deployment
+
+Push to `main`. The GitHub Actions workflow builds and deploys automatically. Monitor in the **Actions** tab.
+
+### Step 9 — Configure MFA Conditional Access policy
+
+See [MFA Enforcement](#mfa-enforcement) below. Do this before sharing the URL with any users.
 
 ---
 
-## Environment Variables
+## Deployment: Production Mode
 
-Copy `.env.example` to `.env.local` for local development. For production, set these as **Application settings** in the Azure Static Web App resource (not as GitHub secrets — SWA passes them to the runtime).
+Complete all Demo Mode steps first, replacing `CLAIMS_DATA_MODE=demo` with `CLAIMS_DATA_MODE=production` everywhere, then complete the additional steps below.
+
+### Additional Step A — Implement the ProductionClaimsAdapter
+
+Open `src/lib/claims/adapters/production.ts`. Replace each `throw new Error(...)` stub with a real call to your CMS API. The `fetch` helper and constructor are already wired to `CLAIMS_API_BASE_URL` and `CLAIMS_API_KEY`.
+
+The `ClaimsAdapter` interface in `src/lib/claims/adapter.ts` defines the exact contract. Your CMS responses must map to the types in `src/lib/claims/types.ts`. Key fields the rest of the application depends on:
+
+| Field | Type | Used by |
+|---|---|---|
+| `jurisdiction` | 2-letter state code | AI system prompt, VCK form selection |
+| `type` | `Medical-Only \| Lost-Time \| PPD \| PTD` | Dashboard, filters |
+| `icd10Codes` | `string[]` | AI context, future form pre-fill |
+| `claimant`, `employer` | Full objects with address | Form pre-population |
+| `status` | `active \| pending \| rtw \| escalated \| closed` | Dashboard metrics, badges |
+
+### Additional Step B — Add CMS credentials to SWA and GitHub secrets
+
+```bash
+az staticwebapp appsettings set \
+  --name swa-adaptcloud-wc-claims-dev \
+  --resource-group rg-adaptcloud-wc-claims-dev \
+  --setting-names \
+    CLAIMS_DATA_MODE="production" \
+    CLAIMS_API_BASE_URL="https://<your-cms-api>/v1" \
+    CLAIMS_API_KEY="<your-cms-api-key>"
+```
+
+Add the same three values as GitHub secrets (`CLAIMS_DATA_MODE`, `CLAIMS_API_BASE_URL`, `CLAIMS_API_KEY`).
+
+### Additional Step C — Verify network connectivity
+
+If your CMS API is behind a private network or firewall, Azure Static Web Apps will need either:
+- An **allowlisted outbound IP range** on the CMS side (SWA uses shared Azure egress IPs — get the current list from Azure documentation), or
+- A **VNet integration** (requires SWA Dedicated tier, ~$120/month)
+
+For internal CMS APIs not accessible from the internet, the VNet integration path is the right one.
+
+---
+
+## Azure Infrastructure (Bicep)
+
+The `infra/` directory contains a subscription-scoped Bicep deployment that creates all required Azure resources.
+
+```
+infra/
+├── main.bicep           # Creates resource group, calls modules
+├── main.bicepparam      # Dev environment parameter values
+├── modules/
+│   ├── openai.bicep     # Azure OpenAI account + GPT-4o deployment (S0, Standard)
+│   └── staticwebapp.bicep  # Static Web App (Standard tier)
+└── deploy.sh            # Wrapper: validates, deploys, prints all output values
+```
+
+**To deploy:**
+```bash
+./infra/deploy.sh <subscription-id>
+```
+
+**To modify parameters** (region, model, capacity):
+```bash
+# Edit before deploying
+cat infra/main.bicepparam
+```
+
+**Outputs printed by deploy.sh:**
+
+| Output | GitHub Secret / SWA Setting |
+|---|---|
+| `openAiEndpoint` | `AZURE_OPENAI_ENDPOINT` |
+| `openAiDeploymentName` | `AZURE_OPENAI_DEPLOYMENT_NAME` |
+| `swaHostname` | `NEXTAUTH_URL` (prefix with `https://`) |
+| `swaDeploymentToken` | `AZURE_STATIC_WEB_APPS_API_TOKEN` |
+
+> The OpenAI API key is not in the Bicep outputs for security. Retrieve it separately with `az cognitiveservices account keys list`.
+
+---
+
+## Environment Variables Reference
+
+### Required in all modes
+
+Set in `.env.local` for local dev. Set as **SWA Application Settings** for runtime and as **GitHub secrets** for build time.
 
 | Variable | Where to find it | Required |
 |---|---|---|
-| `NEXTAUTH_URL` | Your app's base URL (`http://localhost:3000` locally, `https://<swa-hostname>` in prod) | Yes |
-| `NEXTAUTH_SECRET` | Generate: `openssl rand -base64 32` | Yes |
+| `NEXTAUTH_URL` | `http://localhost:3000` locally; `https://<swa-hostname>` in prod | Yes |
+| `NEXTAUTH_SECRET` | `openssl rand -base64 32` | Yes |
 | `AZURE_AD_CLIENT_ID` | Entra ID → App registration → Overview | Yes |
 | `AZURE_AD_CLIENT_SECRET` | Entra ID → App registration → Certificates & secrets | Yes |
 | `AZURE_AD_TENANT_ID` | Entra ID → App registration → Overview | Yes |
-| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI resource → Keys and Endpoint | Yes |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI resource → Keys and Endpoint | Yes |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | Azure OpenAI → Model deployments (e.g. `gpt-4o`) | Yes |
-| `NEXT_PUBLIC_APP_NAME` | Display name shown in the UI | No |
-| `NEXT_PUBLIC_ORG_NAME` | Organization name shown in the sidebar | No |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI → Keys and Endpoint | Yes |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI → Keys and Endpoint | Yes |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | Azure OpenAI → Model deployments | Yes |
+| `CLAIMS_DATA_MODE` | `demo` or `production` | Yes |
 
-> Variables prefixed `NEXT_PUBLIC_` are embedded at build time and exposed to the browser. Do not put secrets in them.
+### Production mode only
+
+| Variable | Description | Required |
+|---|---|---|
+| `CLAIMS_API_BASE_URL` | Base URL of your CMS REST API | Yes (production) |
+| `CLAIMS_API_KEY` | API key or service account token for CMS | Yes (production) |
+
+### Optional display
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_APP_NAME` | App title shown in the browser tab and header |
+| `NEXT_PUBLIC_ORG_NAME` | Organization name shown in the sidebar |
+
+> `NEXT_PUBLIC_` variables are embedded at build time and sent to the browser. Never put secrets in them.
 
 ---
 
-## GitHub Actions Deployment
+## MFA Enforcement
 
-The workflow at `.azure/deploy.yml` runs on every push to `main` and on pull requests.
+MFA is enforced at three independent layers. All three must fail simultaneously for a session without MFA to reach the application — in practice this is not possible once the Conditional Access policy is active.
 
-### Required GitHub Secrets
+| Layer | Where | What it does |
+|---|---|---|
+| Conditional Access policy | Entra ID portal | Blocks the OAuth flow entirely if MFA is not completed. Primary enforcement. |
+| `acr_values: "mfa"` | `src/lib/auth.ts` | Application explicitly requests MFA step-up in the authorization request, even if the user has an existing non-MFA session cookie. |
+| `amr` claim check | `src/lib/auth.ts` + `src/middleware.ts` | JWT callback reads Azure AD's Authentication Methods References claim and sets `mfaVerified: boolean`. Middleware rejects any session where `mfaVerified !== true` before the request reaches any page or API route. |
 
-Go to your GitHub repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** and add:
+### Conditional Access policy setup
 
-| Secret name | Value |
-|---|---|
-| `NEXTAUTH_URL` | Your production SWA URL |
-| `NEXTAUTH_SECRET` | Same value as in SWA Application settings |
-| `AZURE_AD_CLIENT_ID` | From App registration |
-| `AZURE_AD_CLIENT_SECRET` | From App registration |
-| `AZURE_AD_TENANT_ID` | From App registration |
-| `AZURE_OPENAI_ENDPOINT` | From Azure OpenAI resource |
-| `AZURE_OPENAI_API_KEY` | From Azure OpenAI resource |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | Your model deployment name |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | From SWA resource → Manage deployment token |
+1. **portal.azure.com → Entra ID → Security → Conditional Access → New policy**
+2. Name: `CA-WC-Claims-Portal-Require-MFA`
+3. **Users**: your claims adjusters group (exclude break-glass accounts)
+4. **Target resources → Cloud apps**: select `wc-claims-portal-dev`
+5. **Grant → Require multifactor authentication**
+6. Set to **Report-only** for 24 hours, verify in Sign-in logs, then set to **On**
 
-> The build step uses secrets only to embed `NEXT_PUBLIC_*` values at compile time. All other secrets are also set as Application settings in the SWA resource so they are available at runtime.
+---
 
-### What the pipeline does
+## GitHub Actions CI/CD
+
+The workflow at `.azure/deploy.yml` triggers on every push to `main` and on pull requests.
+
+### What it does
 
 1. Checks out the repo
-2. Installs Node 20 and runs `npm ci` in `wc-claims-portal/`
-3. Runs `next build` with secrets injected as env vars
-4. Uploads the `.next/standalone` output to Azure Static Web Apps
+2. Installs Node 20, runs `npm ci` in `wc-claims-portal/`
+3. Runs `next build` with all secrets injected as env vars
+4. Uploads `.next/standalone` to Azure Static Web Apps
 5. On PR close, tears down the preview environment automatically
+
+### GitHub secrets required
+
+All variables in the [Required in all modes](#required-in-all-modes) table plus `AZURE_STATIC_WEB_APPS_API_TOKEN`. For production deployments, also add the [Production mode only](#production-mode-only) variables.
+
+> **Why both GitHub secrets and SWA Application Settings?** GitHub secrets are available only during the build step (compile-time). SWA Application Settings are injected at runtime into the Next.js server process. Non-`NEXT_PUBLIC_` variables must be in both places.
+
+---
+
+## GitHub Copilot Compatibility
+
+| Copilot product | Compatible | Notes |
+|---|---|---|
+| **GitHub Copilot** (VS Code / JetBrains) | Yes | TypeScript interfaces give Copilot strong context. The `ClaimsAdapter` interface is particularly useful — Copilot can see the contract and suggest correct `ProductionClaimsAdapter` implementations when wiring a CMS. |
+| **GitHub Copilot for Azure** (`@azure` extension) | Yes | The Bicep files in `infra/` are directly compatible. Ask it to modify resources, add modules, or explain the deployment. |
+| **Copilot Autofix** (security scanning in PRs) | Yes | No conflicts with the current setup. Will flag issues in workflow files and source code automatically. |
+
+**One caveat**: `.azure/deploy.yml` builds the app manually rather than using the SWA integrated build service (`skip_app_build: true`). Copilot for Azure sometimes suggests switching to the managed build flow. Do not remove `skip_app_build: true` — the Next.js standalone output must be built with secrets available, which the SWA build service cannot access.
 
 ---
 
@@ -214,40 +407,58 @@ Go to your GitHub repo → **Settings** → **Secrets and variables** → **Acti
 
 ```
 wc-claims-portal/
+├── infra/
+│   ├── main.bicep                    # Subscription-scoped entry point
+│   ├── main.bicepparam               # Dev environment parameters
+│   ├── modules/
+│   │   ├── openai.bicep              # Azure OpenAI + model deployment
+│   │   └── staticwebapp.bicep        # SWA (Standard tier)
+│   └── deploy.sh                     # Deployment wrapper script
+│
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── auth/[...nextauth]/route.ts   # NextAuth handler (GET + POST)
-│   │   │   └── chat/route.ts                 # Streaming SSE chat endpoint
-│   │   ├── auth/
-│   │   │   ├── signin/page.tsx               # Azure AD sign-in page
-│   │   │   └── error/page.tsx                # Auth error page
-│   │   ├── claims/
-│   │   │   ├── page.tsx                      # Claims list table
-│   │   │   └── [id]/page.tsx                 # Per-claim split view (detail + chat)
-│   │   ├── dashboard/page.tsx                # Summary stats and recent activity
-│   │   ├── layout.tsx                        # Root layout with SessionProvider
-│   │   └── page.tsx                          # Root redirect (→ /dashboard or /auth/signin)
+│   │   │   ├── auth/[...nextauth]/   # NextAuth OAuth handler
+│   │   │   ├── claims/               # GET /api/claims — list
+│   │   │   ├── claims/[id]/          # GET /api/claims/:id — single claim
+│   │   │   └── chat/                 # POST /api/chat — streaming SSE
+│   │   ├── auth/signin/              # Azure AD sign-in page
+│   │   ├── auth/error/               # Auth error page
+│   │   ├── claims/                   # Claims list page
+│   │   ├── claims/[id]/              # Per-claim split view (detail + AI chat)
+│   │   ├── dashboard/                # KPI stats + activity feed
+│   │   └── layout.tsx / page.tsx
+│   │
 │   ├── components/
-│   │   ├── chat/ChatPanel.tsx                # Streaming chat UI with markdown rendering
+│   │   ├── chat/ChatPanel.tsx        # Streaming chat UI, markdown rendering
 │   │   ├── claims/
-│   │   │   ├── ClaimDetail.tsx               # Claim data panel
-│   │   │   ├── ClaimsTable.tsx               # Sortable claims list
-│   │   │   ├── DashboardStats.tsx            # KPI cards
-│   │   │   └── RecentActivity.tsx            # Activity feed
+│   │   │   ├── ClaimDetail.tsx       # Claim data panel (pure display, typed props)
+│   │   │   ├── ClaimsTable.tsx       # Claims list table (pure display, typed props)
+│   │   │   ├── DashboardStats.tsx    # KPI cards (pure display, typed props)
+│   │   │   └── RecentActivity.tsx    # Activity feed (pure display, typed props)
 │   │   └── ui/
-│   │       ├── AppShell.tsx                  # Sidebar nav + mobile layout
-│   │       └── AuthProvider.tsx              # NextAuth SessionProvider wrapper
+│   │       ├── AppShell.tsx          # Sidebar nav + mobile layout
+│   │       └── AuthProvider.tsx      # NextAuth SessionProvider wrapper
+│   │
 │   ├── lib/
-│   │   ├── auth.ts                           # NextAuth config and callbacks
-│   │   └── azure-openai.ts                   # AzureOpenAI client + WC system prompt
-│   ├── middleware.ts                          # Protects all routes except /auth and /api/auth
+│   │   ├── auth.ts                   # NextAuth config, MFA enforcement
+│   │   ├── azure-openai.ts           # OpenAIClient + WC domain system prompt
+│   │   └── claims/
+│   │       ├── types.ts              # Claim, ClaimSummary, DashboardMetrics, etc.
+│   │       ├── adapter.ts            # ClaimsAdapter interface (the contract)
+│   │       ├── index.ts              # Singleton factory — reads CLAIMS_DATA_MODE
+│   │       └── adapters/
+│   │           ├── demo.ts           # 10-claim seed dataset, in-memory
+│   │           └── production.ts     # CMS API stub — implement to go live
+│   │
+│   ├── middleware.ts                 # Route protection + mfaVerified enforcement
 │   └── types/
-│       ├── chat.ts                           # Message and request types
-│       └── next-auth.d.ts                    # Session type augmentation (roles, oid)
-├── staticwebapp.config.json                  # SWA routing, auth rules, security headers
-├── .azure/deploy.yml                         # GitHub Actions CI/CD workflow
-├── .env.example                              # Template for local env setup
+│       ├── chat.ts                   # Message, Role types
+│       └── next-auth.d.ts            # Session augmentation (roles, oid, mfaVerified)
+│
+├── staticwebapp.config.json          # SWA routing rules + security headers
+├── .azure/deploy.yml                 # GitHub Actions CI/CD workflow
+├── .env.example                      # Environment variable template
 ├── next.config.ts
 ├── tailwind.config.ts
 └── tsconfig.json
@@ -257,30 +468,40 @@ wc-claims-portal/
 
 ## Key Routes
 
-| Route | Auth required | Description |
+| Route | Auth + MFA | Description |
 |---|---|---|
 | `/` | Yes | Redirects to `/dashboard` |
-| `/dashboard` | Yes | KPI stats + recent claim activity |
-| `/claims` | Yes | Full claims list table |
-| `/claims/[id]` | Yes | Claim detail + AI chat panel side by side |
-| `/auth/signin` | No | Azure AD sign-in page |
+| `/dashboard` | Yes | KPI metrics + recent claim activity |
+| `/claims` | Yes | Full claims list with jurisdiction column |
+| `/claims/[id]` | Yes | Claim detail panel + streaming AI chat |
+| `/auth/signin` | No | Azure AD sign-in (Microsoft button) |
 | `/auth/error` | No | Auth error display |
 | `/api/auth/[...nextauth]` | No | NextAuth OAuth callback handler |
-| `/api/chat` | Yes (session) | Streaming SSE endpoint — POST `{messages, claimId?}` |
+| `/api/claims` | Yes | `GET` — returns `ClaimSummary[]` |
+| `/api/claims/:id` | Yes | `GET` — returns full `Claim` or 404 |
+| `/api/chat` | Yes | `POST` — streaming SSE, 20 req/min per user |
 
-The `/api/chat` endpoint:
-- Validates the session server-side before touching Azure OpenAI
-- Accepts up to 50 messages, max 32k characters each (Zod-validated)
-- Injects the WC system prompt and optional claim ID context automatically
-- Streams responses as `text/event-stream` SSE (`data: {"content":"..."}` lines, terminated with `data: [DONE]`)
+### `/api/chat` request body
+
+```json
+{
+  "messages": [{ "role": "user", "content": "..." }],
+  "claimId": "WC-2024-0891",
+  "jurisdiction": "CA"
+}
+```
+
+`jurisdiction` is automatically injected into the AI system prompt so responses cite the correct state statutes, deadlines, and form requirements.
 
 ---
 
 ## Security Notes
 
-- **Route protection**: `src/middleware.ts` uses NextAuth's `withAuth` to block unauthenticated access to all routes except `/auth/*` and `/api/auth/*`.
-- **API protection**: `/api/chat` independently verifies `getServerSession` — it does not trust the middleware alone.
-- **Security headers**: `staticwebapp.config.json` sets `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and a Content Security Policy on all responses.
-- **Secrets**: No secrets are committed to the repo. All credentials flow through GitHub Actions secrets (build time) and SWA Application settings (runtime).
-- **Session lifetime**: JWT sessions expire after 8 hours, matching a standard work day.
-- **AI disclaimer**: The chat UI displays a notice that responses should be verified against jurisdiction statutes and clinical guidelines. The AI does not have write access to any claims system in the current scaffold.
+- **MFA**: Three-layer enforcement — Conditional Access policy, `acr_values` in auth request, `amr` claim verified server-side. See [MFA Enforcement](#mfa-enforcement).
+- **Route protection**: `src/middleware.ts` blocks all routes except `/auth/*` and `/api/auth/*` for sessions without a verified MFA claim.
+- **API protection**: `/api/chat` and `/api/claims` independently verify `getServerSession` — they do not trust middleware alone.
+- **Rate limiting**: `/api/chat` enforces 20 requests per minute per user (by `oid` or email) using an in-memory sliding window. Prevents unbounded Azure OpenAI spend.
+- **Security headers**: `staticwebapp.config.json` sets `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and Content Security Policy on all responses.
+- **Secrets**: Nothing is committed to the repo. Credentials flow through GitHub Actions secrets (build time) and SWA Application Settings (runtime).
+- **Session lifetime**: JWT sessions expire after 8 hours (one work day).
+- **AI disclaimer**: The chat UI shows a notice that AI responses must be verified against jurisdiction statutes and clinical guidelines. The AI has no write access to any claims system.
