@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getClaimsAdapter } from "@/lib/claims";
+import { auditLog, buildAuditEvent } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,8 @@ export async function GET() {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  auditLog(buildAuditEvent("claims.list", session.user));
 
   try {
     const adapter = getClaimsAdapter();

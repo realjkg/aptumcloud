@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getClaimsAdapter } from "@/lib/claims";
+import { auditLog, buildAuditEvent } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,8 @@ export async function GET(
   }
 
   const { id } = await params;
+
+  auditLog(buildAuditEvent("claim.view", session.user, { claimId: id }));
 
   try {
     const adapter = getClaimsAdapter();

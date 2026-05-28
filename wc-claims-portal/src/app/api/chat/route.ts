@@ -8,6 +8,8 @@ import {
   type ChatRequestMessage,
 } from "@/lib/azure-openai";
 import { z } from "zod";
+import { ROLES, forbiddenIfMissingRole } from "@/lib/rbac";
+import { auditLog, buildAuditEvent } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -48,8 +50,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // RBAC — only adjusters and supervisors may invoke the AI
+  const rbacDenied = forbiddenIfMissingRole(
+    session.user.roles,
+    ROLES.ADJUSTER,
+    ROLES.SUPERVISOR
+  );
+  if (rbacDenied) return rbacDenied;
+
   const userId = session.user.oid ?? session.user.email ?? "unknown";
   if (isRateLimited(userId)) {
+    auditLog(buildAuditEvent("chat.rate_limited", session.user));
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment before sending another message." },
       { status: 429 }
@@ -72,6 +83,14 @@ export async function POST(req: NextRequest) {
   }
 
   const { messages, claimId, jurisdiction } = parsed.data;
+
+  auditLog(
+    buildAuditEvent("chat.request", session.user, {
+      claimId,
+      jurisdiction,
+      metadata: { messageCount: messages.length },
+    })
+  );
 
   let systemContent = WC_SYSTEM_PROMPT;
   if (claimId || jurisdiction) {

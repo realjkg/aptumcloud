@@ -371,6 +371,93 @@ MFA is enforced at three independent layers. All three must fail simultaneously 
 
 ---
 
+## RBAC — Role-Based Access Control
+
+Roles are assigned in **Entra ID → App registration → App roles**, then granted to users or groups via **Enterprise Applications → Assign users and groups**.
+
+### Defined roles
+
+| Role value | Who gets it | What it unlocks |
+|---|---|---|
+| `Claims.Adjuster` | Front-line adjusters | Full portal access including AI chat |
+| `Claims.Supervisor` | Supervisors, managers | Full portal access including AI chat |
+| `Claims.ReadOnly` | Auditors, compliance | Portal and claim views; AI chat blocked |
+
+### Where enforcement happens
+
+- **`/api/chat`** — requires `Claims.Adjuster` or `Claims.Supervisor`. Returns `403 Forbidden` with a clear message for `Claims.ReadOnly` users and anyone with no role assigned.
+- All other routes are accessible to any authenticated user with a valid MFA session. Role-gating on specific claim actions (reserve updates, status changes) is the next enforcement layer.
+
+### Adding a role in Entra ID
+
+1. **App registration → App roles → Create app role**
+   - Display name: `Claims Adjuster`
+   - Allowed member types: Users/Groups
+   - Value: `Claims.Adjuster`
+   - Description: Front-line WC claims adjuster — can view claims and use the AI assistant
+2. **Enterprise Applications → your app → Users and groups → Add user/group**
+   - Select the user or group, assign the role
+
+Roles appear in the `id_token` claims on the user's next sign-in and flow through to `session.user.roles` automatically.
+
+---
+
+## Audit Logging
+
+Every significant action is written as structured JSON to stdout. In Azure Static Web Apps, stdout flows to **Azure Monitor / Log Analytics** automatically — no additional SDK required to start.
+
+### What is logged
+
+| Event | When |
+|---|---|
+| `claims.list` | Any adjuster views the claims list |
+| `claim.view` | Any adjuster opens a specific claim |
+| `chat.request` | An AI message is sent (includes claim ID, jurisdiction, message count) |
+| `chat.rate_limited` | A user hits the 20 req/min limit |
+| `chat.error` | Azure OpenAI returns an error |
+
+### Log format
+
+```json
+{
+  "audit": true,
+  "type": "chat.request",
+  "userId": "<azure-ad-oid>",
+  "userEmail": "adjuster@yourorg.com",
+  "userName": "T. Brown",
+  "claimId": "WC-2024-0891",
+  "jurisdiction": "CA",
+  "metadata": { "messageCount": 4 },
+  "timestamp": "2024-10-22T14:35:00.000Z"
+}
+```
+
+### Querying in Log Analytics
+
+Once connected to a Log Analytics workspace, query audit events with:
+
+```kusto
+AppTraces
+| where Properties.audit == "true"
+| project
+    Timestamp = todatetime(Properties.timestamp),
+    Type      = tostring(Properties.type),
+    UserId    = tostring(Properties.userId),
+    UserEmail = tostring(Properties.userEmail),
+    ClaimId   = tostring(Properties.claimId)
+| order by Timestamp desc
+```
+
+### Upgrading to Application Insights custom events
+
+When you're ready for structured telemetry, dashboards, and alerting:
+
+1. `npm install applicationinsights`
+2. Add `APPLICATIONINSIGHTS_CONNECTION_STRING` to SWA Application Settings
+3. In `src/lib/audit.ts`, add `client.trackEvent()` alongside the `console.log` — no callers change
+
+---
+
 ## GitHub Actions CI/CD
 
 The workflow at `.azure/deploy.yml` triggers on every push to `main` and on pull requests.
@@ -498,9 +585,11 @@ wc-claims-portal/
 ## Security Notes
 
 - **MFA**: Three-layer enforcement — Conditional Access policy, `acr_values` in auth request, `amr` claim verified server-side. See [MFA Enforcement](#mfa-enforcement).
+- **RBAC**: `/api/chat` requires `Claims.Adjuster` or `Claims.Supervisor` role. Read-only users and unenrolled accounts receive `403`. See [RBAC](#rbac--role-based-access-control).
+- **Audit logging**: All claim views and AI interactions are logged as structured JSON. See [Audit Logging](#audit-logging).
 - **Route protection**: `src/middleware.ts` blocks all routes except `/auth/*` and `/api/auth/*` for sessions without a verified MFA claim.
-- **API protection**: `/api/chat` and `/api/claims` independently verify `getServerSession` — they do not trust middleware alone.
-- **Rate limiting**: `/api/chat` enforces 20 requests per minute per user (by `oid` or email) using an in-memory sliding window. Prevents unbounded Azure OpenAI spend.
+- **API protection**: All API routes independently verify `getServerSession` — they do not trust middleware alone.
+- **Rate limiting**: `/api/chat` enforces 20 requests per minute per user (by Azure AD OID) using an in-memory sliding window. Prevents unbounded Azure OpenAI spend.
 - **Security headers**: `staticwebapp.config.json` sets `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and Content Security Policy on all responses.
 - **Secrets**: Nothing is committed to the repo. Credentials flow through GitHub Actions secrets (build time) and SWA Application Settings (runtime).
 - **Session lifetime**: JWT sessions expire after 8 hours (one work day).
