@@ -10,15 +10,16 @@ import type { Message } from "@/types/chat";
 
 interface Props {
   claimId?: string;
+  jurisdiction?: string;
 }
 
-export function ChatPanel({ claimId }: Props) {
+export function ChatPanel({ claimId, jurisdiction }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: uid(),
       role: "assistant",
       content: claimId
-        ? `I'm your WC claims assistant. I have context for claim **${claimId}**. How can I help you with this claim today?`
+        ? `I'm your WC claims assistant. I have context for claim **${claimId}**${jurisdiction ? ` (${jurisdiction} jurisdiction)` : ""}. How can I help you with this claim today?`
         : "I'm your WC claims assistant. Ask me about any claim, coverage analysis, return-to-work planning, reserves, or jurisdiction requirements.",
       createdAt: new Date(),
     },
@@ -60,7 +61,7 @@ export function ChatPanel({ claimId }: Props) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, claimId }),
+        body: JSON.stringify({ messages: history, claimId, jurisdiction }),
       });
 
       if (!res.ok) {

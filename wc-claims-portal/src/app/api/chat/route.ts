@@ -12,6 +12,21 @@ import { z } from "zod";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// ---------------------------------------------------------------------------
+// Per-user sliding window rate limiter — 20 requests / 60 seconds.
+// Resets on cold start; sufficient to prevent runaway Azure OpenAI spend.
+// ---------------------------------------------------------------------------
+const _windows = new Map<string, number[]>();
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const window = (_windows.get(userId) ?? []).filter((t) => now - t < 60_000);
+  if (window.length >= 20) return true;
+  window.push(now);
+  _windows.set(userId, window);
+  return false;
+}
+
 const ChatRequestSchema = z.object({
   messages: z
     .array(
@@ -23,6 +38,7 @@ const ChatRequestSchema = z.object({
     .min(1)
     .max(50),
   claimId: z.string().optional(),
+  jurisdiction: z.string().length(2).toUpperCase().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -30,6 +46,14 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = session.user.oid ?? session.user.email ?? "unknown";
+  if (isRateLimited(userId)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment before sending another message." },
+      { status: 429 }
+    );
   }
 
   let body: unknown;
@@ -47,11 +71,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { messages, claimId } = parsed.data;
+  const { messages, claimId, jurisdiction } = parsed.data;
 
-  const systemContent = claimId
-    ? `${WC_SYSTEM_PROMPT}\n\n## Active Claim Context\nClaim ID: ${claimId}`
-    : WC_SYSTEM_PROMPT;
+  let systemContent = WC_SYSTEM_PROMPT;
+  if (claimId || jurisdiction) {
+    const ctx = ["## Active Claim Context"];
+    if (claimId)     ctx.push(`Claim ID: ${claimId}`);
+    if (jurisdiction) ctx.push(`Jurisdiction: ${jurisdiction} — apply ${jurisdiction} Workers' Compensation statutes, deadlines, and form requirements.`);
+    systemContent += "\n\n" + ctx.join("\n");
+  }
 
   const client = getAzureOpenAIClient();
 
