@@ -20,6 +20,10 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "openid profile email offline_access",
+          // Ask Azure AD to step up to MFA even if the user has an existing
+          // non-MFA session cookie. Conditional Access is the primary
+          // enforcement layer; this is belt-and-suspenders at the request level.
+          acr_values: "mfa",
         },
       },
     }),
@@ -35,9 +39,14 @@ export const authOptions: NextAuthOptions = {
         token.idToken = account.id_token;
       }
       if (profile) {
+        const p = profile as Record<string, unknown>;
         // Azure AD exposes roles via the token's roles claim
-        token.roles = (profile as Record<string, unknown>).roles ?? [];
-        token.oid = (profile as Record<string, unknown>).oid;
+        token.roles = (p.roles as string[]) ?? [];
+        token.oid = p.oid as string | undefined;
+        // amr (Authentication Methods References) contains "mfa" when Azure AD
+        // confirms multi-factor authentication was completed this session.
+        const amr = (p.amr as string[] | undefined) ?? [];
+        token.mfaVerified = amr.includes("mfa");
       }
       return token;
     },

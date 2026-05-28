@@ -20,5 +20,6 @@ declare module "next-auth/jwt" {
     idToken?: string;
     roles?: string[];
     oid?: string;
+    mfaVerified: boolean;
   }
 }
