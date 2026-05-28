@@ -29,7 +29,7 @@ variable "saml_idp_metadata_url" {
 variable "kms_keyring_name" {
   description = "The name of the KMS keyring"
   type        = string
-  default     = "aptum-k8s-keyring"
+  default     = "adapt-k8s-keyring"
 }
 
 variable "kms_keyring_location" {
@@ -41,7 +41,7 @@ variable "kms_keyring_location" {
 variable "kms_crypto_key_name" {
   description = "The name of the KMS crypto key"
   type        = string
-  default     = "aptum-k8s-crypto-key"
+  default     = "adapt-k8s-crypto-key"
 }
 
 variable "kms_crypto_key_rotation_period" {
